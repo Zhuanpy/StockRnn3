@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import numpy as np
 import pandas as pd
 from code.MySql.LoadMysql import StockData1m, StockData15m, LoadRnnModel
@@ -13,7 +14,6 @@ pd.set_option('display.width', 5000)
 
 
 def transfer_data():
-
     month_p = ['2021-11', '2021-12', '2022-01']
     stock_list = ['600309']
 
@@ -60,7 +60,6 @@ def transfer_data():
 
 
 class ModelData:
-
     """
     1. 处理模型数据
     2. 模型数据准备
@@ -78,21 +77,37 @@ class ModelData:
         self.Y = YColumn()
         self.model_name = ModelName
 
-    def data_common(self, model_name: str, con_x, con_y, height=30, width=30):  # width=w2, height=h1
+    def _load_existing_data(self, model_name: str):
         file_ = f'{model_name}_{self.stock_code}'
-        data_x = np.zeros([0])
-        data_y = np.empty([0])
+        file_path_ = os.path.join(self.root, 'data', self._month, 'train_data')
+        file_path_x = os.path.join(file_path_, f'{file_}_x.npy')
+        file_path_y = os.path.join(file_path_, f'{file_}_y.npy')
 
-        # 前数据读取
-        if self._month:
-            data_x = np.load(f'{self.root}/data/{self._month}/train_data/{file_}_x.npy', allow_pickle=True)
-            data_y = np.load(f'{self.root}/data/{self._month}/train_data/{file_}_y.npy', allow_pickle=True)
+        try:
+            # 前数据读取
+            data_x = np.load(file_path_x, allow_pickle=True)
+            data_y = np.load(file_path_y, allow_pickle=True)
+            return data_x, data_y
+
+        except FileNotFoundError:
+            return np.zeros([0]), np.empty([0])
+
+    def _save_data(self, model_name: str, data_x, data_y):
+        file_path = os.path.join(self.root, 'data', self.months, 'train_data')
+        file_path_x = os.path.join(file_path, f'{model_name}_{self.stock_code}_x.npy')
+        file_path_y = os.path.join(file_path, f'{model_name}_{self.stock_code}_y.npy')
+
+        np.save(file_path_x, data_x)
+        np.save(file_path_y, data_y)
+
+    def data_common(self, model_name: str, con_x, con_y, height=30, width=30):  # width=w2, height=h1
+
+        data_x, data_y = self._load_existing_data(model_name)  # 加载以前数据
 
         # 整理数据
         data_ = self.data_15m.dropna(subset=[SignalChoice])
 
         for st in data_[SignalTimes]:
-
             x = self.data_15m[self.data_15m[SignalTimes] == st][con_x].dropna(how='any').tail(height)
             y = self.data_15m[self.data_15m[SignalTimes] == st][con_y].dropna(how='any').tail(1)
 
@@ -126,8 +141,7 @@ class ModelData:
                 data_y = y
 
         # 新数据储存
-        np.save(f'{self.root}/data/{self.months}/train_data/{file_}_x.npy', data_x)
-        np.save(f'{self.root}/data/{self.months}/train_data/{file_}_y.npy', data_y)
+        self._save_data(model_name, data_x, data_y)
 
         print(f'{model_name}, shape: {data_x.shape};')
 
