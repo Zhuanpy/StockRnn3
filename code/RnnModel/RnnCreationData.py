@@ -579,7 +579,7 @@ class RMTrainingData:
         calculation.calculation_single()
 
     def update_train_records(self, records):
-        """更新训练记录"""
+        """更新训练表格记录"""
         if records.empty:
             return
 
@@ -611,12 +611,13 @@ class RMTrainingData:
             current = pd.Timestamp('now').date()
 
             for i, row in records.iterrows():
-                Stock = row['name']
+                stock_ = row['name']
                 id_ = row['id']
 
-                print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{Stock};')
+                print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{stock_};')
+
                 try:
-                    run = TrainingDataCalculate(Stock, self.months, self.start_date, self._month)
+                    run = TrainingDataCalculate(stock_, self.months, self.start_date, self._month)
                     run.calculation_read_from_sql()
 
                     sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
