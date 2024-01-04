@@ -198,7 +198,21 @@ class TrainingDataCalculate(ModelData):
 
     def stand_save_parser(self, data, column, drop_duplicates, drop_column):
 
+        """
+           Standardize and save the specified column data.
+
+           Parameters:
+               data (pd.DataFrame): Input DataFrame.
+               column (str): Column to be standardized.
+               drop_duplicates (bool): Flag indicating whether to drop duplicates.
+               drop_column (str): Name of the column to be dropped if `drop_duplicates` is True.
+
+           Returns:
+               pd.DataFrame: DataFrame with standardized and saved column.
+           """
+
         if drop_duplicates:
+
             if drop_column == SignalChoice:
                 df = data.dropna(subset=[SignalChoice])
 
@@ -327,8 +341,8 @@ class TrainingDataCalculate(ModelData):
         self.data_15m = SignalMethod.signal_by_MACD_3ema(self.data_15m, self.data_1m).set_index('date', drop=True)
 
         data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
-        data_daily.loc[:, 'date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
-        data_daily.loc[:, DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
+        data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
+        data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
 
         daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
 
@@ -340,9 +354,11 @@ class TrainingDataCalculate(ModelData):
         else:
             pre_daily_volume_max = daily_volume_max
 
+        # 使用 max 函数一行完成最大值的更新
         self.daily_volume_max = max(daily_volume_max, pre_daily_volume_max)
 
-        data_daily.loc[:, DailyVolEmaParser] = self.daily_volume_max / data_daily[DailyVolEma]
+        # 简化日线数据处理
+        data_daily[DailyVolEmaParser] = self.daily_volume_max / data_daily[DailyVolEma]
         data_daily = data_daily[['date', DailyVolEmaParser]].set_index('date', drop=True)
 
         self.data_15m = self.data_15m.join([data_daily]).reset_index()
@@ -355,19 +371,22 @@ class TrainingDataCalculate(ModelData):
         return self.data_15m
 
     def find_bar_max_1m(self, x, num):
-        st = pd.to_datetime(x) + pd.Timedelta(minutes=-15)
-        ed = pd.to_datetime(x)
-
-        max_vol = self.data_1m[(self.data_1m['date'] > st) & (self.data_1m['date'] < ed)]
-        max_vol = max_vol.sort_values(by=['volume'])['volume'].tail(num).mean()
 
         try:
-            max_vol = int(max_vol)  # volume 1m is 'nan'
+            st = pd.to_datetime(x) + pd.Timedelta(minutes=-15)
+            ed = pd.to_datetime(x)
 
-        except ValueError:
-            max_vol = None
+            max_vol = self.data_1m[(self.data_1m['date'] > st) & (self.data_1m['date'] < ed)]
+            max_vol = max_vol.sort_values(by=['volume'])['volume'].tail(num).mean()
+
+            if pd.notna(max_vol):  # 如果 max_vol 不是 NaN
+                max_vol = int(max_vol)  # volume 1m is 'nan'
+
+            else:
+                max_vol = None
 
         except Exception as ex:
+            # 处理其他异常，并打印错误信息
             max_vol = None
             print(f'{self.stock_name} 函数： find_bar_max_1m 错误;\n{ex}')
 
@@ -378,19 +397,20 @@ class TrainingDataCalculate(ModelData):
         for index in self.data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).index:
             signal_times = self.data_15m.loc[index, SignalTimes]
             end_price_time = self.data_15m.loc[index, EndPriceIndex]
+
             selects = self.data_15m[(self.data_15m[SignalTimes] == signal_times) &
                                     (self.data_15m[EndPriceIndex] <= end_price_time)].tail(35)
 
-            st_index = selects.index[0]
-            ed_index = selects.index[-1]
+            # 优化索引获取
+            st_index, ed_index = selects.index[0], selects.index[-1]
 
-            self.data_15m.loc[st_index:ed_index, Bar1mVolMax1] = \
-                self.data_15m.loc[st_index:ed_index]['date'].apply(self.find_bar_max_1m, args=(1,))
+            self.data_15m.loc[st_index:ed_index, Bar1mVolMax1] = self.data_15m.loc[st_index:ed_index]['date'].apply(
+                self.find_bar_max_1m, args=(1,))
 
-            self.data_15m.loc[st_index:ed_index, Bar1mVolMax5] = \
-                self.data_15m.loc[st_index:ed_index]['date'].apply(self.find_bar_max_1m, args=(5,))
+            self.data_15m.loc[st_index:ed_index, Bar1mVolMax5] = self.data_15m.loc[st_index:ed_index]['date'].apply(
+                self.find_bar_max_1m, args=(5,))
 
-        # # 保存计算数据
+        # 替换无穷大和无穷小的值为 NaN
         self.data_15m = self.data_15m.replace([np.inf, -np.inf], np.nan)
 
         # 计算数据保存
@@ -402,6 +422,7 @@ class TrainingDataCalculate(ModelData):
 
         self.data_15m[Signal] = self.data_15m[Signal].astype(float)
 
+        # 成交量相关参数的处理
         vol_parser = ['volume', Cycle1mVolMax1, Cycle1mVolMax5,
                       Daily1mVolMax1, Daily1mVolMax5, Daily1mVolMax15,
                       Bar1mVolMax1, Bar1mVolMax5, 'EndDaily1mVolMax5']  # 成交量乘以参数，相似化
@@ -436,24 +457,25 @@ class TrainingDataCalculate(ModelData):
 
         self.rnn_parser_data()
 
+        # 判断是否有指定的 RecordStartDate
         if self.RecordStartDate:
-            self.data_1m = StockData1m.load_1m(self.stock_code, self.RecordStartDate)
-            self.data_1m = self.data_1m.sort_values(by=['date'])
-            self.start_date_1m = self.data_1m.iloc[0]['date']
-
-            self.data_1m = self.data_1m[
-                (self.data_1m['date'] > (pd.to_datetime(self.RecordStartDate) + pd.Timedelta(days=-30))) &
-                (self.data_1m['date'] < (pd.to_datetime(self.months) + pd.Timedelta(days=-30)))]
+            start_date = self.RecordStartDate
 
         else:
-            self.data_1m = StockData1m.load_1m(self.stock_code, self.start_date)
-            self.data_1m = self.data_1m.sort_values(by=['date'])
-            self.start_date_1m = self.data_1m.iloc[0]['date']
+            start_date = self.start_date
 
-            self.data_1m = self.data_1m[(self.data_1m['date'] > pd.to_datetime(self.start_date)) &
-                                        (self.data_1m['date'] < (
-                                                pd.to_datetime(self.months) + pd.Timedelta(days=-30)))]
+        # 加载1分钟数据并进行筛选
+        self.data_1m = StockData1m.load_1m(self.stock_code, start_date)
+        self.data_1m = self.data_1m.sort_values(by=['date'])
 
+        # 提取数据起始日期
+        self.start_date_1m = self.data_1m.iloc[0]['date']
+
+        # 筛选数据时间范围
+        self.data_1m = self.data_1m[(self.data_1m['date'] > (pd.to_datetime(start_date) + pd.Timedelta(days=-30))) &
+                                    (self.data_1m['date'] < (pd.to_datetime(self.months) + pd.Timedelta(days=-30)))]
+
+        # 去除重复值和缺失值
         self.data_1m = self.data_1m.dropna(subset=['date']).drop_duplicates(subset=['date']).reset_index(drop=True)
 
         return self.data_1m
@@ -461,6 +483,8 @@ class TrainingDataCalculate(ModelData):
     def save_15m_data(self):
 
         if self.RecordStartDate:
+
+            # 筛选数据并加载旧数据
             self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
             import sqlalchemy
 
@@ -477,28 +501,23 @@ class TrainingDataCalculate(ModelData):
         else:
             StockData15m.replace_15m(data=self.data_15m, code_=self.stock_code)
 
-        """     
-        保存15m 数据截止日期
-        
-        record end date : red
-        record end signal: res
-        record end Signal Times : rest 
-        record end Signal Start Time : resst
-        record end next start : rens
-        """
+        # 保存15m数据截止日期相关信息
+        record_end_date = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
+        record_end_signal = self.data_15m.iloc[-1]['Signal']
+        record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
+        record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
+        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
+            '%Y-%m-%d %H:%M:%S')
 
-        red = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
-        res = self.data_15m.iloc[-1]['Signal']
-        rest = self.data_15m.iloc[-1]['SignalTimes']
-        resst = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        rens = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
-
+        # 读取旧参数并更新
         records = ReadSaveFile.read_json(self.months, self.stock_code)
-        records['RecordEndDate'] = red
-        records['RecordEndSignal'] = res
-        records['RecordEndSignalTimes'] = rest
-        records['RecordEndSignalStartTime'] = resst
-        records['RecordNextStartDate'] = rens
+        records.update({
+            'RecordEndDate': record_end_date,
+            'RecordEndSignal': record_end_signal,
+            'RecordEndSignalTimes': record_end_signal_times,
+            'RecordEndSignalStartTime': record_end_signal_start_time,
+            'RecordNextStartDate': record_next_start})
+
         ReadSaveFile.save_json(records, self.months, self.stock_code)  # 更新参数
 
     def data_15m_calculate(self):
@@ -559,32 +578,43 @@ class RMTrainingData:
         calculation = TrainingDataCalculate(Stock, self.months, self.start_date, self._month)
         calculation.calculation_single()
 
-    def all_stock(self):
-        records = LoadRnnModel.load_train_record()
-        records = records[records['ParserMonth'] == self.months]
+    def update_train_records(self, records):
+        """更新训练记录"""
+        if records.empty:
+            return
 
-        if not records.shape[0]:
+        ids = tuple(records.id)
+        sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} 
+                    set ParserMonth = '{self.months}', 
+                    ModelData ='pending' where id in {ids};'''
+
+        LoadRnnModel.rnn_execute_sql(sql)
+
+    def all_stock(self):
+        load = LoadRnnModel.load_train_record()
+        records = load[load['ParserMonth'] == self.months]
+
+        # 更新训练记录中的状态
+        if records.empty:
+            records = load.copy()
             records['ParserMonth'] = self.months
             records['ModelData'] = 'pending'
-            ids = tuple(records.id)
+            records['ModelCheck'] = 'pending'
+            records['ModelError'] = 'pending'
 
-            sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} 
-            set ParserMonth = '{self.months}', 
-            ModelData ='pending' where id in {ids};'''
+            self.update_train_records(records)
 
-            LoadRnnModel.rnn_execute_sql(sql)
-
+        # 查看等待数据
         records = records[~records['ModelData'].isin(['success'])].reset_index(drop=True)
-        print(records)
-        shapes = records.shape[0]
-        current = pd.Timestamp().now().date()
+        if not records.empty:
+            shapes = records.shape[0]
+            current = pd.Timestamp('now').date()
 
-        if shapes:
-            for i, index in zip(range(shapes), records.index):
-                Stock = records.loc[index, 'name']
-                id_ = records.loc[index, 'id']
+            for i, row in records.iterrows():
+                Stock = row['name']
+                id_ = row['id']
+
                 print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{Stock};')
-
                 try:
                     run = TrainingDataCalculate(Stock, self.months, self.start_date, self._month)
                     run.calculation_read_from_sql()
@@ -600,15 +630,14 @@ class RMTrainingData:
 
                     sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set ModelData = 'error', 
                     ModelDataTiming = NULL where id = {id_}; '''
-
                     LoadRnnModel.rnn_execute_sql(sql)
 
-        else:
+        if records.empty:
             print('Training Data create success;')
 
 
 if __name__ == '__main__':
-    month_ = '2022-02'
+    month_ = '2023-02'
     _month = None
     start_date = '2018-01-01'
 
