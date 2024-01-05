@@ -52,6 +52,7 @@ def rnn_data_path(month: str):
     :return: 数据路径
     """
     path = os.path.join('data', 'RnnData', month)
+
     return path
 
 
@@ -95,12 +96,14 @@ def pre_month_data_list(month: str, classification: str) -> list:
 
 def find_file_in_paths(month: str, classification: str, file_name: str):
     folder_paths = pre_month_data_list(month, classification)
+
     for folder_path in folder_paths:
         file_path = os.path.join(folder_path, file_name)
 
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return folder_path
             # 如果找到第一个存在的路径，立即返回并结束循环
+
     return False
 
 
