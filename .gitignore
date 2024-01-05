@@ -13,7 +13,8 @@ img/
 .DS_Store
 .idea/
 pp/
-code/MyWeb/
+code/MyWeb/static
+code/MyWeb/Basic
 UI/
 share/
 echarts-python-0.1.3/
