@@ -574,8 +574,8 @@ class RMTrainingData:
         self.start_date = start_
         self._month = _month
 
-    def single_stock(self, Stock):
-        calculation = TrainingDataCalculate(Stock, self.months, self.start_date, self._month)
+    def single_stock(self, stock: str):
+        calculation = TrainingDataCalculate(stock, self.months, self.start_date, self._month)
         calculation.calculation_single()
 
     def update_train_records(self, records):

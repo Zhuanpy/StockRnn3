@@ -15,6 +15,7 @@ from keras import backend as k
 import pandas as pd
 from code.parsers.RnnParser import *
 import os
+from Rnn_utils import rnn_data_path, find_file_in_paths
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -36,11 +37,6 @@ def create_model():
     return model
 
 
-def rnn_data_path(month: str):
-    path = os.path.join('data', 'RnnData', month)
-    return path
-
-
 class BuiltModel:
 
     def __init__(self, stock: str, months: str, _month):
@@ -51,19 +47,21 @@ class BuiltModel:
 
         # todo 前一个月数据，是否可以让python遍历文件夹，自动获取上一个文件夹数据；
         # todo 遍历往上，直到读取到非空文件夹
-        self._month = _month
+        # self._month = _month
 
     def train_model(self, model_name: str, lr=0.01, num_train=30, num_test=10):
 
         k.clear_session()  # 清除缓存
 
         # 导入数据 train data , test data
-        data_path = rnn_data_path(self._month)
-        weight_path = os.path.join(data_path, 'weight', f'weight_{model_name}_{self.code}.h5')
+        # data_path = rnn_data_path(self._month)
+        # todo 这里导入训练数据，逻辑还是有问题， 不能简单导入上一个文件夹训练数据；
+        x_name = f'{model_name}_{self.code}_x.npy'
+        data_x_path = find_file_in_paths(self.months, 'train_data', x_name)
+        data_y_path = find_file_in_paths(self.months, 'train_data', x_name)
 
-        path_train_data = os.path.join(data_path, 'train_data')
-        data_x = np.load(path_train_data, f'{model_name}_{self.code}_x.npy')
-        data_y = np.load(path_train_data, f'{model_name}_{self.code}_y.npy')
+        data_x = np.load(data_x_path, f'{model_name}_{self.code}_x.npy')
+        data_y = np.load(data_y_path, f'{model_name}_{self.code}_y.npy')
 
         # 数据拆分
         len_data = int(data_y.shape[0] * 0.8)
@@ -78,6 +76,9 @@ class BuiltModel:
         model = create_model()
 
         try:
+            # 读取历史权重数据
+            f = f'weight_{model_name}_{self.code}.h5'
+            weight_path = find_file_in_paths(self.months, 'weight', f)
             model.load_weights(filepath=weight_path)
             epochs = 100
 
