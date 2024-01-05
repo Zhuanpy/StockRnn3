@@ -25,7 +25,6 @@ macd_ = col['Macd']['8']
 
 # boll
 
-
 # cycle
 EndPrice = col['cycle']['1']
 EndPriceIndex = col['cycle']['2']

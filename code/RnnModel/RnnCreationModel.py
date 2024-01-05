@@ -7,16 +7,33 @@ from keras.layers import Flatten
 from keras.layers import Conv2D
 from keras.layers import AveragePooling2D
 
-from keras.optimizers import adam_v2 # Adam
+from keras.optimizers import adam_v2  # Adam
 from code.Normal import ReadSaveFile as rf
 from code.MySql.sql_utils import Stocks
 import numpy as np
 from keras import backend as k
 import pandas as pd
 from code.parsers.RnnParser import *
+import os
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
+
+
+def create_model():
+    model = Sequential()
+    model.add(Conv2D(filters=6, kernel_size=(5, 5),
+                     strides=(1, 1), input_shape=(30, 30, 1),
+                     padding='valid', activation='relu'))
+    model.add(AveragePooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(filters=16, kernel_size=(5, 5), strides=(1, 1),
+                     padding='valid', activation='relu'))
+    model.add(AveragePooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+    model.add(Dense(units=120, activation='relu'))
+    model.add(Dense(units=84, activation='relu'))
+    model.add(Dense(units=1))
+    return model
 
 
 class BuiltModel:
@@ -26,14 +43,21 @@ class BuiltModel:
         self.name, self.code, self.stock_id = Stocks(stock)
 
         self.months = months
+
+        # todo 前一个月数据，是否可以让python遍历文件夹，自动获取上一个文件夹数据；
         self._month = _month
 
     def train_model(self, modelName: str, lr=0.01, num_train=30, num_test=10):
+
         k.clear_session()  # 清除缓存
 
         # 导入数据 train data , test data
-        data_x = np.load(f'data/{self.months}/train_data/{modelName}_{self.code}_x.npy')
-        data_y = np.load(f'data/{self.months}/train_data/{modelName}_{self.code}_y.npy')
+        data_path = os.path.join('data', self._month)
+        weight_path = os.path.join(data_path, 'weight', f'weight_{modelName}_{self.code}.h5')
+
+        path_train_data = os.path.join(data_path, 'train_data')
+        data_x = np.load(path_train_data, f'{modelName}_{self.code}_x.npy')
+        data_y = np.load(path_train_data, f'{modelName}_{self.code}_y.npy')
 
         # 数据拆分
         len_data = int(data_y.shape[0] * 0.8)
@@ -45,21 +69,9 @@ class BuiltModel:
         test_y = data_y[len_data:]
 
         # 搭建模型
-        model = Sequential()
-        model.add(Conv2D(filters=6, kernel_size=(5, 5),
-                         strides=(1, 1), input_shape=(30, 30, 1),
-                         padding='valid', activation='relu'))
-        model.add(AveragePooling2D(pool_size=(2, 2)))
-        model.add(Conv2D(filters=16, kernel_size=(5, 5), strides=(1, 1),
-                         padding='valid', activation='relu'))
-        model.add(AveragePooling2D(pool_size=(2, 2)))
-        model.add(Flatten())
-        model.add(Dense(units=120, activation='relu'))
-        model.add(Dense(units=84, activation='relu'))
-        model.add(Dense(units=1))
+        model = create_model()
 
         try:
-            weight_path = f'data/{self._month}/weight/weight_{modelName}_{self.code}.h5'
             model.load_weights(filepath=weight_path)
             epochs = 100
 
@@ -86,7 +98,6 @@ class BuiltModel:
         self.train_model(modelname)
 
     def model_all(self):
-
         for name in ModelName:
             self.train_model(name)
 
@@ -101,37 +112,37 @@ class RMBuiltModel:
         train = BuiltModel(stock, self.months, _month=self._month)
         train.model_all()
 
-    def train_all(self):
+    def train_remaining_models(self):
+        training_records = LoadRnnModel.load_train_record()
+        training_records = training_records[(training_records['ParserMonth'] == self.months) &
+                                            (training_records['ModelData'] == 'success') &
+                                            (training_records['ModelCreate'] != 'success')]
 
-        data = LoadRnnModel.load_train_record()
-        data = data[(data['ParserMonth'] == self.months) &
-                    (data['ModelData'] == 'success') &
-                    (data['ModelCreate'] != 'success')]
+        if not training_records.empty:
+            training_records = training_records.reset_index(drop=True)
+            shapes = training_records.shape[0]
+            current = pd.Timestamp('now').date()
 
-        shapes = data.shape[0]
-        current = pd.Timestamp().today().date()
-        print(data)
-        for i, index in zip(range(shapes), data.index):
+            for i, row in training_records.iterrows():
+                stock_ = row['name']
+                id_ = row.loc['id']
+                print(f'当前股票：{stock_};\n训练进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
 
-            Stock = data.loc[index, 'name']
-            id_ = data.loc[index, 'id']
-            print(f'当前股票：{Stock};\n训练进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
+                try:
+                    train = BuiltModel(stock_, self.months, _month=self._month)
+                    train.model_all()
 
-            try:
-                train = BuiltModel(Stock, self.months, _month=self._month)
-                train.model_all()
+                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
+                    ModelCreate = 'success', 
+                    ModelCreateTiming = {current} where id = {id_};'''
 
-                sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
-                ModelCreate = 'success', 
-                ModelCreateTiming = {current} where id = {id_};'''
+                except Exception as ex:
+                    print(f'ModelCreate Error : {ex}')
+                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
+                    ModelCreate = 'error', 
+                    ModelCreateTiming = '{current}' where id = '{id_}';'''
 
-            except Exception as ex:
-                print(f'ModelCreate Error : {ex}')
-                sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
-                ModelCreate = 'error', 
-                ModelCreateTiming = '{current}' where id = '{id_}';'''
-
-            LoadRnnModel.rnn_execute_sql(sql)
+                LoadRnnModel.rnn_execute_sql(sql)
 
 
 if __name__ == '__main__':
@@ -139,4 +150,4 @@ if __name__ == '__main__':
     _month = None
 
     run = RMBuiltModel(month_, _month)
-    run.train_all()
+    run.train_remaining_models()
