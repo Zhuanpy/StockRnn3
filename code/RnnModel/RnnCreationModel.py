@@ -36,6 +36,11 @@ def create_model():
     return model
 
 
+def rnn_data_path(month: str):
+    path = os.path.join('data', 'RnnData', month)
+    return path
+
+
 class BuiltModel:
 
     def __init__(self, stock: str, months: str, _month):
@@ -45,19 +50,20 @@ class BuiltModel:
         self.months = months
 
         # todo 前一个月数据，是否可以让python遍历文件夹，自动获取上一个文件夹数据；
+        # todo 遍历往上，直到读取到非空文件夹
         self._month = _month
 
-    def train_model(self, modelName: str, lr=0.01, num_train=30, num_test=10):
+    def train_model(self, model_name: str, lr=0.01, num_train=30, num_test=10):
 
         k.clear_session()  # 清除缓存
 
         # 导入数据 train data , test data
-        data_path = os.path.join('data', self._month)
-        weight_path = os.path.join(data_path, 'weight', f'weight_{modelName}_{self.code}.h5')
+        data_path = rnn_data_path(self._month)
+        weight_path = os.path.join(data_path, 'weight', f'weight_{model_name}_{self.code}.h5')
 
         path_train_data = os.path.join(data_path, 'train_data')
-        data_x = np.load(path_train_data, f'{modelName}_{self.code}_x.npy')
-        data_y = np.load(path_train_data, f'{modelName}_{self.code}_y.npy')
+        data_x = np.load(path_train_data, f'{model_name}_{self.code}_x.npy')
+        data_y = np.load(path_train_data, f'{model_name}_{self.code}_y.npy')
 
         # 数据拆分
         len_data = int(data_y.shape[0] * 0.8)
@@ -85,17 +91,16 @@ class BuiltModel:
 
         # 评估， 保存评估， 保存训练参数， 保存模型
         records = rf.read_json(self.months, self.code)
-        records[modelName] = loss
+        records[model_name] = loss
         rf.save_json(records, self.months, self.code)
 
-        # 保存参数
-        model.save_weights(f'data/{self.months}/weight/weight_{modelName}_{self.code}.h5')
+        # 保存
+        _path = rnn_data_path(self.months)
+        model.save_weights(f'{_path}/weight/weight_{model_name}_{self.code}.h5')  # 保存参数
+        model.save(f'{_path}/model/{model_name}_{self.code}.h5')  # 保存模型
 
-        # 保存模型
-        model.save(f'data/{self.months}/model/{modelName}_{self.code}.h5')
-
-    def model_one(self, modelname: str):
-        self.train_model(modelname)
+    def model_one(self, model_name: str):
+        self.train_model(model_name)
 
     def model_all(self):
         for name in ModelName:
