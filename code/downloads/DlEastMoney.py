@@ -6,48 +6,11 @@ from selenium import webdriver
 from bs4 import BeautifulSoup as soup
 import pandas as pd
 from download_utils import page_source, WebDriver
-from root_ import file_root
 from download_utils import UrlCode
+from code.password.parser import my_headers, my_url
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
-
-
-def my_headers(pp: str):
-    """
-    read header data
-    save to different web heaer to txt and read txt;
-    """
-
-    _path = file_root()
-    pph = f'{_path}/data/password/EastMoney/header_{pp}.txt'
-    f2 = open(pph, 'r')
-    lines = f2.readlines()
-    h = {}
-    for line in lines:
-        line = line.strip('\n')
-        line = line.replace(' ', '')
-        line = line.split(':')
-        keys = line[0]
-        values = line[1]
-        h[keys] = values
-
-    return h
-
-
-def my_url(pp: str):
-    """
-    find my url setting
-    """
-
-    _path = file_root()
-    ppl = f'{_path}/data/password/EastMoney/Url_{pp}.txt'
-    f2 = open(ppl, 'r')
-    lines = f2.readlines()
-    url = lines[0]
-    url = url.strip('\n')
-    url = url.replace(' ', '')
-    return url
 
 
 def show_dl(freq, code):
@@ -273,6 +236,7 @@ class DownloadData:
         data = pd.concat([dl01, dl02, dl03], ignore_index=True).reset_index(drop=True)
 
         print(f'东方财富下载{new_date}日北向资金流入个股据成功;')
+
         return data
 
     @classmethod
@@ -419,8 +383,8 @@ class DownloadData:
             data.loc[i, 'board_code'] = board_code
 
         driver.close()
-        data.loc[:, 'stock_name'] = None
-        data.loc[:, 'stock_code'] = None
+        data['stock_name'] = None
+        data['stock_code'] = None
         return data
 
     @classmethod
@@ -509,8 +473,7 @@ class DownloadData:
 
 if __name__ == '__main__':
     # data = DownloadData.funds_to_sectors('2022-11-15')
-
     # data = DownloadData.stock_1m_1day('002475')
-    data = DownloadData.stock_1m_days('002475')
 
-    print(data)
+    data_ = DownloadData.stock_1m_days('002475')
+    print(data_)
