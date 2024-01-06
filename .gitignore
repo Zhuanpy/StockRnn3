@@ -9,6 +9,7 @@
 *.DS_Store
 *.npy
 *.h5
+*.json
 .idea/
 code/MyWeb/static
 code/MyWeb/Basic
