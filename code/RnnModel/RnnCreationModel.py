@@ -14,7 +14,6 @@ import numpy as np
 from keras import backend as k
 import pandas as pd
 from code.parsers.RnnParser import *
-import os
 from Rnn_utils import rnn_data_path, find_file_in_paths
 
 pd.set_option('display.max_columns', None)
@@ -39,26 +38,21 @@ def create_model():
 
 class BuiltModel:
 
-    def __init__(self, stock: str, months: str, _month):
+    def __init__(self, stock: str, months: str):
 
         self.name, self.code, self.stock_id = Stocks(stock)
 
         self.months = months
 
-        # todo 前一个月数据，是否可以让python遍历文件夹，自动获取上一个文件夹数据；
-        # todo 遍历往上，直到读取到非空文件夹
-        # self._month = _month
-
     def train_model(self, model_name: str, lr=0.01, num_train=30, num_test=10):
 
         k.clear_session()  # 清除缓存
 
-        # 导入数据 train data , test data
-        # data_path = rnn_data_path(self._month)
-        # todo 这里导入训练数据，逻辑还是有问题， 不能简单导入上一个文件夹训练数据；
         x_name = f'{model_name}_{self.code}_x.npy'
         data_x_path = find_file_in_paths(self.months, 'train_data', x_name)
-        data_y_path = find_file_in_paths(self.months, 'train_data', x_name)
+
+        y_name = f'{model_name}_{self.code}_y.npy'
+        data_y_path = find_file_in_paths(self.months, 'train_data', y_name)
 
         data_x = np.load(data_x_path, f'{model_name}_{self.code}_x.npy')
         data_y = np.load(data_y_path, f'{model_name}_{self.code}_y.npy')
@@ -110,12 +104,11 @@ class BuiltModel:
 
 class RMBuiltModel:
 
-    def __init__(self, months: str, _month):
+    def __init__(self, months: str, ):
         self.months = months
-        self._month = _month
 
     def train1(self, stock):
-        train = BuiltModel(stock, self.months, _month=self._month)
+        train = BuiltModel(stock, self.months)
         train.model_all()
 
     def train_remaining_models(self):
@@ -135,7 +128,7 @@ class RMBuiltModel:
                 print(f'当前股票：{stock_};\n训练进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
 
                 try:
-                    train = BuiltModel(stock_, self.months, _month=self._month)
+                    train = BuiltModel(stock_, self.months)
                     train.model_all()
 
                     sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
@@ -153,7 +146,5 @@ class RMBuiltModel:
 
 if __name__ == '__main__':
     month_ = '2022-02'
-    _month = None
-
-    run = RMBuiltModel(month_, _month)
+    run = RMBuiltModel(month_)
     run.train_remaining_models()

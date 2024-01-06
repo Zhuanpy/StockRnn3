@@ -456,13 +456,13 @@ class TradingAction(Parsers):
 
 class PredictionCommon(ModelData, DlModel, UpdateData):
 
-    def __init__(self, Stock, months: str, monitor: bool, check_date, alpha=1, stopLoss=None, position=None):
+    def __init__(self, stock: str, months: str, monitor: bool, check_date, alpha=1, stopLoss=None, position=None):
 
         ModelData.__init__(self)
         DlModel.__init__(self)
         UpdateData.__init__(self)
 
-        self.stock_name, self.stock_code, self.stock_id = Stocks(Stock)
+        self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.position = position
         self.months, self.monitor = months, monitor
@@ -869,5 +869,5 @@ if __name__ == '__main__':
     _date = '2022-10-17'
     stock = '002475'
     monitor = False
-    rm = PredictionCommon(Stock=stock, months=month_, monitor=monitor, check_date=_date)
+    rm = PredictionCommon(stock=stock, months=month_, monitor=monitor, check_date=_date)
     rm.single_stock()

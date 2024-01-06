@@ -174,7 +174,6 @@ class ReadSaveFile:
     def read_json(cls, months: str, code: str):
         _path = file_root()
         path = f'{_path}/data/{months}/json/{code}.json'
-
         try:
             with open(path, 'r') as lf:
                 j = json.load(lf)
@@ -182,6 +181,17 @@ class ReadSaveFile:
         except FileNotFoundError:
             j = {}
             cls.save_json(j, months, code)
+        return j
+
+    @classmethod
+    def read_json_by_path(cls, path):
+        try:
+            with open(path, 'r') as lf:
+                j = json.load(lf)
+
+        except FileNotFoundError:
+            return None
+
         return j
 
     @classmethod

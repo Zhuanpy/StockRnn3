@@ -8,6 +8,7 @@ from code.parsers.RnnParser import *
 from code.Normal import ReadSaveFile, ResampleData
 from code.Signals.StatisticsMacd import SignalMethod
 from root_ import file_root
+from Rnn_utils import find_file_in_paths
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -68,7 +69,7 @@ class ModelData:
     def __init__(self):
 
         self.root = file_root()
-        self.months = None
+        self.month = None
         self._month = None
         self.stock_code = None
         self.data_15m = None
@@ -93,7 +94,7 @@ class ModelData:
             return np.zeros([0]), np.empty([0])
 
     def _save_data(self, model_name: str, data_x, data_y):
-        file_path = os.path.join(self.root, 'data', self.months, 'train_data')
+        file_path = os.path.join(self.root, 'data', self.month, 'train_data')
         file_path_x = os.path.join(file_path, f'{model_name}_{self.stock_code}_x.npy')
         file_path_y = os.path.join(file_path, f'{model_name}_{self.stock_code}_y.npy')
 
@@ -168,14 +169,12 @@ class ModelData:
 
 class TrainingDataCalculate(ModelData):
 
-    def __init__(self, stock: str, months: str, start_date: str, _month):
+    def __init__(self, stock: str, month: str, start_date: str, ):  # _month
 
         ModelData.__init__(self)
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
-        self.months = months  # '2021SEP'
-        self._month = _month
-
+        self.month = month
         self.data_1m = None
         self.data_15m = None
         self.times_data = None
@@ -190,11 +189,11 @@ class TrainingDataCalculate(ModelData):
         self.daily_volume_max = None
 
     def rnn_parser_data(self):
-        data = ReadSaveFile.read_json(self.months, self.stock_code)
+        data = ReadSaveFile.read_json(self.month, self.stock_code)
 
         if self.stock_code not in data:
             data[self.stock_code] = {}
-            ReadSaveFile.save_json(data, self.months, self.stock_code)
+            ReadSaveFile.save_json(data, self.month, self.stock_code)
 
     def stand_save_parser(self, data, column, drop_duplicates, drop_column):
 
@@ -230,12 +229,20 @@ class TrainingDataCalculate(ModelData):
         low = round(med - (3 * 1.4826 * mad), 2)
 
         # 查看参数
-        if self._month:
-            parser_data = ReadSaveFile.read_json(self._month, self.stock_code)
+        try:
+
+            """
+            读取历史的json 数据 ；
+            文件夹递减的方法搜索json 数据 ；
+            """
+            file_name = f"{self.stock_code}.json"
+            file_path = find_file_in_paths(self.month, 'json', file_name)
+
+            parser_data = ReadSaveFile.read_json_by_path(file_path)
             pre_high = parser_data[self.stock_code][column]['num_max']
             pre_low = parser_data[self.stock_code][column]['num_min']
 
-        else:
+        except:
             pre_high = high
             pre_low = low
 
@@ -250,26 +257,27 @@ class TrainingDataCalculate(ModelData):
         low = data[column].min()
 
         # 数据归一化
-        data.loc[:, column] = (data[column] - low) / (high - low)
+        data[column] = (data[column] - low) / (high - low)
 
-        parser_data = ReadSaveFile.read_json(self.months, self.stock_code)
+        parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
         parser_data[column] = {'num_max': high, 'num_min': low}
-        ReadSaveFile.save_json(parser_data, self.months, self.stock_code)  # 更新参数
+        ReadSaveFile.save_json(parser_data, self.month, self.stock_code)  # 更新参数
 
         return data
 
     def stand_read_parser(self, data, column, match):
-        parser_data = ReadSaveFile.read_json(self.months, self.stock_code)
+        parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
         num_max = parser_data[self.stock_code][match]['num_max']
         num_min = parser_data[self.stock_code][match]['num_min']
 
         data.loc[data[column] > num_max, column] = num_max
         data.loc[data[column] < num_min, column] = num_min
-        data.loc[:, column] = (data[column] - num_min) / (num_max - num_min)
+        data[column] = (data[column] - num_min) / (num_max - num_min)
         return data
 
     def column_stand(self):
         # 保存 daily_volume_max
+
         if not self.daily_volume_max:
             _date = '2018-01-01'
             self.data_1m = StockData1m.load_1m(self.stock_code, _date)
@@ -281,9 +289,9 @@ class TrainingDataCalculate(ModelData):
 
             self.daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
 
-        parser_data = ReadSaveFile.read_json(self.months, self.stock_code)
+        parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
         parser_data[DailyVolEma] = self.daily_volume_max
-        ReadSaveFile.save_json(parser_data, self.months, self.stock_code)
+        ReadSaveFile.save_json(parser_data, self.month, self.stock_code)
 
         save_list = [('volume', False, None),
                      (Daily1mVolMax1, True, Daily1mVolMax1),
@@ -368,6 +376,7 @@ class TrainingDataCalculate(ModelData):
         # 排除最后 signalTimes , 可能周期并未走完整
         last_signal_times = self.data_15m.iloc[-1][SignalTimes]
         self.data_15m = self.data_15m[self.data_15m[SignalTimes] != last_signal_times]
+
         return self.data_15m
 
     def find_bar_max_1m(self, x, num):
@@ -473,7 +482,7 @@ class TrainingDataCalculate(ModelData):
 
         # 筛选数据时间范围
         self.data_1m = self.data_1m[(self.data_1m['date'] > (pd.to_datetime(start_date) + pd.Timedelta(days=-30))) &
-                                    (self.data_1m['date'] < (pd.to_datetime(self.months) + pd.Timedelta(days=-30)))]
+                                    (self.data_1m['date'] < (pd.to_datetime(self.month) + pd.Timedelta(days=-30)))]
 
         # 去除重复值和缺失值
         self.data_1m = self.data_1m.dropna(subset=['date']).drop_duplicates(subset=['date']).reset_index(drop=True)
@@ -510,7 +519,7 @@ class TrainingDataCalculate(ModelData):
             '%Y-%m-%d %H:%M:%S')
 
         # 读取旧参数并更新
-        records = ReadSaveFile.read_json(self.months, self.stock_code)
+        records = ReadSaveFile.read_json(self.month, self.stock_code)
         records.update({
             'RecordEndDate': record_end_date,
             'RecordEndSignal': record_end_signal,
@@ -518,7 +527,7 @@ class TrainingDataCalculate(ModelData):
             'RecordEndSignalStartTime': record_end_signal_start_time,
             'RecordNextStartDate': record_next_start})
 
-        ReadSaveFile.save_json(records, self.months, self.stock_code)  # 更新参数
+        ReadSaveFile.save_json(records, self.month, self.stock_code)  # 更新参数
 
     def data_15m_calculate(self):
         # # 1m 数据选择
@@ -569,13 +578,13 @@ class TrainingDataCalculate(ModelData):
 
 class RMTrainingData:
 
-    def __init__(self, months: str, start_: str, _month):
-        self.months = months
+    def __init__(self, months: str, start_: str, ):  # _month
+        self.month = months
         self.start_date = start_
-        self._month = _month
+        # self._month = _month
 
     def single_stock(self, stock: str):
-        calculation = TrainingDataCalculate(stock, self.months, self.start_date, self._month)
+        calculation = TrainingDataCalculate(stock, self.month, self.start_date)
         calculation.calculation_single()
 
     def update_train_records(self, records):
@@ -585,19 +594,19 @@ class RMTrainingData:
 
         ids = tuple(records.id)
         sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} 
-                    set ParserMonth = '{self.months}', 
+                    set ParserMonth = '{self.month}', 
                     ModelData ='pending' where id in {ids};'''
 
         LoadRnnModel.rnn_execute_sql(sql)
 
     def all_stock(self):
         load = LoadRnnModel.load_train_record()
-        records = load[load['ParserMonth'] == self.months]
+        records = load[load['ParserMonth'] == self.month]
 
         # 更新训练记录中的状态
         if records.empty:
             records = load.copy()
-            records['ParserMonth'] = self.months
+            records['ParserMonth'] = self.month
             records['ModelData'] = 'pending'
             records['ModelCheck'] = 'pending'
             records['ModelError'] = 'pending'
@@ -617,7 +626,7 @@ class RMTrainingData:
                 print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{stock_};')
 
                 try:
-                    run = TrainingDataCalculate(stock_, self.months, self.start_date, self._month)
+                    run = TrainingDataCalculate(stock_, self.month, self.start_date)
                     run.calculation_read_from_sql()
 
                     sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
@@ -639,8 +648,6 @@ class RMTrainingData:
 
 if __name__ == '__main__':
     month_ = '2023-02'
-    _month = None
-    start_date = '2018-01-01'
-
-    running = RMTrainingData(month_, start_date, _month)
+    start_d = '2018-01-01'
+    running = RMTrainingData(month_, start_d)
     running.all_stock()
