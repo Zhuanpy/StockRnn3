@@ -10,7 +10,7 @@ pd.set_option('display.width', 5000)
 
 def sql_password():
     path_ = file_root()
-    path_ = f'{path_}/pp/sql.txt'
+    path_ = f'{path_}/data/password/sql.txt'
     f = open(path_, 'r')
     w = f.read()
     return w

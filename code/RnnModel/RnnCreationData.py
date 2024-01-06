@@ -340,10 +340,10 @@ class TrainingDataCalculate(ModelData):
     def find_bar_max_1m(self, x, num):
 
         try:
-            st = pd.to_datetime(x) + pd.Timedelta(minutes=-15)
-            ed = pd.to_datetime(x)
+            start_time = pd.to_datetime(x) + pd.Timedelta(minutes=-15)
+            end_time = pd.to_datetime(x)
 
-            max_vol = self.data_1m[(self.data_1m['date'] > st) & (self.data_1m['date'] < ed)]
+            max_vol = self.data_1m[(self.data_1m['date'] > start_time) & (self.data_1m['date'] < end_time)]
             max_vol = max_vol.sort_values(by=['volume'])['volume'].tail(num).mean()
 
             if pd.notna(max_vol):  # 如果 max_vol 不是 NaN
@@ -473,8 +473,7 @@ class TrainingDataCalculate(ModelData):
         record_end_signal = self.data_15m.iloc[-1]['Signal']
         record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
         record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
-            '%Y-%m-%d %H:%M:%S')
+        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
 
         # 读取旧参数并更新
         records = ReadSaveFile.read_json(self.month, self.stock_code)
@@ -488,6 +487,7 @@ class TrainingDataCalculate(ModelData):
         ReadSaveFile.save_json(records, self.month, self.stock_code)  # 更新参数
 
     def data_15m_calculate(self):
+
         # # 1m 数据选择
         self.data_1m_calculate()
 
@@ -503,7 +503,9 @@ class TrainingDataCalculate(ModelData):
 
     def calculation_single(self):
 
+        # TODO 这里得修改  self._month:
         if self._month:
+
             try:
                 record = ReadSaveFile.read_json(self._month, self.stock_code)
                 self.RecordEndDate = record[self.stock_code]['RecordEndDate']
