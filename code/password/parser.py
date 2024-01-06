@@ -1,9 +1,7 @@
-import json
 from root_ import file_root
 import os
 
 _path = file_root()  # 获取root file 路径
-
 
 def sql_password():
     path_ = os.path.join(_path, 'data', 'password', 'sql.txt')

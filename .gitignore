@@ -10,6 +10,7 @@
 *.npy
 *.h5
 *.json
+*.rar
 .idea/
 code/MyWeb/static
 code/MyWeb/Basic

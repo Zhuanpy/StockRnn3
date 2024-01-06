@@ -2,6 +2,7 @@ import time
 from DlEastMoney import DownloadData as dle
 import pandas as pd
 from code.MySql.LoadMysql import StockData1m, LoadBasicInform, LoadNortFunds
+from code.Savedata.save_download import save_1m_to_csv
 import datetime
 
 pd.set_option('display.max_columns', None)
@@ -122,11 +123,11 @@ class DataDailyRenew:
                     continue
 
                 ending = pd.to_datetime(ending)
+
                 if ending > record_ending:
-                    # todo 将下载的1分钟数据，同时保存至 data 1m 文件夹中， 理由： 方便不同电脑更新 1m数据
+
                     try:
-                        # 有时保存数据会出现未知错误;
-                        # 保存数据， 保存 1m数据;
+                        # 保存 1m数据;
                         year_ = ending.year
                         StockData1m.append_1m(code_=stock_code, year_=str(year_), data=data)
 
@@ -135,12 +136,14 @@ class DataDailyRenew:
                         EsDownload = 'success' where id={id_}; '''
                         LoadBasicInform.basic_execute_sql(sql)
 
+                        save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
+
                     except Exception as ex:
                         sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
                         set RecordDate = '{current}', EsDownload = 'failed' where id={id_}; '''
                         LoadBasicInform.basic_execute_sql(sql)
-                        # todo 加载日志
                         print(f'股票：{stock_name}, {stock_code}存储数据异常: {ex}')
+                        # todo 加载日志
 
                 if ending == record_ending:
                     # data record date equal download end date ,just renew record date
