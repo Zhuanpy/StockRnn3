@@ -235,7 +235,6 @@ class TradePoolFaker:
             num_ = cls.buy_num(close)
             print(f'code_:{code_}, num_:{num_}')
             price_ = ''
-
             trade_.buy_action(code_=code_, num_=str(num_))
 
         print(f'Buy Succeed;')
