@@ -29,7 +29,7 @@ def stock_evaluate(day_, _num, num_, data, months, check_model):
 
         try:
 
-            run = PredictionCommon(Stock=stock_, months=months, monitor=False, check_date=day_)
+            run = PredictionCommon(stock=stock_, months=months, monitor=False, check_date=day_)
             run.single_stock()
 
             if check_model:

@@ -122,10 +122,10 @@ class ModelData:
 
 
 class TrainingDataCalculate(ModelData):
-
     """
     训练数据处理
     """
+
     def __init__(self, stock: str, month: str, start_date: str, ):  # _month
 
         ModelData.__init__(self)
@@ -473,7 +473,8 @@ class TrainingDataCalculate(ModelData):
         record_end_signal = self.data_15m.iloc[-1]['Signal']
         record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
         record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
+        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
+            '%Y-%m-%d %H:%M:%S')
 
         # 读取旧参数并更新
         records = ReadSaveFile.read_json(self.month, self.stock_code)
@@ -502,6 +503,7 @@ class TrainingDataCalculate(ModelData):
         return self.data_15m
 
     def calculation_single(self):
+
         try:
             path = find_file_in_paths(self.month, 'json', f'{self.stock_code}.json')  # 返回 json 路径
             record = ReadSaveFile.read_json_by_path(path)
@@ -546,9 +548,6 @@ class RMTrainingData:
 
     def update_train_records(self, records):
         """更新训练表格记录"""
-        if records.empty:
-            return
-
         ids = tuple(records.id)
         sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} 
                     set ParserMonth = '{self.month}', 
@@ -572,35 +571,38 @@ class RMTrainingData:
 
         # 查看等待数据
         records = records[~records['ModelData'].isin(['success'])].reset_index(drop=True)
-        if not records.empty:
-            shapes = records.shape[0]
-            current = pd.Timestamp('now').date()
-
-            for i, row in records.iterrows():
-                stock_ = row['name']
-                id_ = row['id']
-
-                print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{stock_};')
-
-                try:
-                    run = TrainingDataCalculate(stock_, self.month, self.start_date)
-                    run.calculation_read_from_sql()
-
-                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
-                    ModelData = 'success',
-                    ModelDataTiming = '{current}' where id = '{id_}'; '''
-
-                    LoadRnnModel.rnn_execute_sql(sql)
-
-                except Exception as ex:
-                    print(f'Model Data Create Error: {ex}')
-
-                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set ModelData = 'error', 
-                    ModelDataTiming = NULL where id = {id_}; '''
-                    LoadRnnModel.rnn_execute_sql(sql)
 
         if records.empty:
             print('Training Data create success;')
+            return False  # 结束运行，因为 records 为空
+
+        shapes = records.shape[0]
+        current = pd.Timestamp('now').date()
+
+        for i, row in records.iterrows():
+            stock_ = row['name']
+            id_ = row['id']
+
+            print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{stock_};')
+
+            try:
+                run = TrainingDataCalculate(stock_, self.month, self.start_date)
+                run.calculation_read_from_sql()
+
+                sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
+                ModelData = 'success',
+                ModelDataTiming = '{current}' where id = '{id_}'; '''
+
+                LoadRnnModel.rnn_execute_sql(sql)
+
+            except Exception as ex:
+                print(f'Model Data Create Error: {ex}')
+
+                sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set ModelData = 'error', 
+                ModelDataTiming = NULL where id = {id_}; '''
+                LoadRnnModel.rnn_execute_sql(sql)
+
+        return True
 
 
 if __name__ == '__main__':

@@ -37,12 +37,11 @@ class RMMonitor:
                   f'剩余股票: {(end_ - start_ - i)}个;\n当前股票：{Stock};\n')
 
             try:
-                run = PredictionCommon(Stock=Stock, months=self.months, monitor=True, check_date=None)
+                run = PredictionCommon(stock=Stock, months=self.months, monitor=True, check_date=None)
                 run.single_stock()
 
             except Exception as ex:
                 print(f'{Stock}: {ex}；')
-                # pass
 
             i += 1
 

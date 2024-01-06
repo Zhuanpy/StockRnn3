@@ -17,6 +17,7 @@ def download_1m(stock, code, days):
         df = dle.stock_1m_days(code, days=days)
 
     except Exception as ex:
+        # todo 引入日志
         print(f'东方财富下载{stock}1m数据异常：{ex};')
         df = pd.DataFrame()
 
@@ -25,6 +26,9 @@ def download_1m(stock, code, days):
 
 def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
+    """
+    通过 聚宽 下载 1m 数据
+    """
     awkward = LoadFundsAwkward.load_fundsAwkward()
     awkward = awkward.groupby('stock_name').count().sort_values(by=['funds_name']).reset_index().tail(300)
     awkward = list(awkward['stock_name'])
@@ -40,27 +44,26 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
     over_ = ''
     over = '您的1000万条体验期已结束'
 
-    if not basic.shape[0]:
+    if basic.empty:
         print('无历史分时数据需下载;')
 
-    if basic.shape[0]:
-
+    if not basic.empty:
         years = [2018 + i for i in range(pd.Timestamp('today').year - 2018 + 1)]
         years = sorted(years, reverse=True)  # [2022, 2021, 2020, 2019, 2018]
 
         for year_ in years:
 
-            for index in basic.index:
+            for row in basic.iterrows():
 
                 if over_ == over:
                     print(over_)
                     break
 
-                name = basic.loc[index, 'name']
-                code = basic.loc[index, 'code']
-                id_ = basic.loc[index, 'id']
+                name = row['name']
+                code = row[ 'code']
+                id_ = row['id']
+                record_start = row['StartDate']
 
-                record_start = basic.loc[index, 'StartDate']
                 record_year = pd.to_datetime(record_start).year
 
                 if year_ > record_year:  # example: record_year: 2021 , year_: 2022 or 2021 or 2020
@@ -119,6 +122,11 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
 
 def collect_all_funds_to_sectors():
+    """
+    北向基金流入板块数据
+    :return:
+    """
+
     funds_board = LoadNortFunds()
     data = funds_board.load_funds2board()
     data = data.sort_values(by=['TRADE_DATE'])

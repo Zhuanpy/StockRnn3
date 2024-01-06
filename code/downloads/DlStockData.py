@@ -18,6 +18,7 @@ def stock_1m(code, days):
         date_ = data.iloc[-1]['date'].date()
 
     except Exception as ex:
+        # todo 引入日志
         print(f'从东方财富下载{code}异常：{ex};')
         return pd.DataFrame(), None
 
@@ -32,8 +33,10 @@ def board_1m(code, days):
     try:
         data = dle.board_1m_multiple(code, days=days)
         date_ = data.iloc[-1]['date'].date()
+        data['money'] = 0
 
     except Exception as ex:
+        # todo 引入日志
         print(f'从东方财富下载{code}异常：{ex};')
         return pd.DataFrame(), None
 
@@ -50,14 +53,15 @@ class DataDailyRenew:
     def download_1mData(cls):
 
         """
-        download 1m data , every day running method;
+        download 1m data ;
+        every day running method;
         """
+        # todo 判断公共假期，周六补充下载数据
         today = datetime.date.today()
 
         shapes = 1
         current = pd.to_datetime(today)  # .date()
-        # print(type(current))
-        # exit()
+
         while shapes:
 
             record = LoadBasicInform.load_minute()  # alc.pd_read(database=db_basic, table=tb_basic)
@@ -75,60 +79,56 @@ class DataDailyRenew:
 
             dl = pd.concat([dl1, dl2], ignore_index=True).sort_values(by=['EndDate']).reset_index(drop=True)
 
-            shapes = dl.shape[0]
-
-            if not shapes:
+            if dl.empty:
                 print('已是最新数据')
                 break
 
-            for i in dl.index:
-                id_ = dl.loc[i, 'id']
-                name = dl.loc[i, 'name']
-                escode = dl.loc[i, 'EsCode']
-                code_ = dl.loc[i, 'code']
-                classification = dl.loc[i, 'Classification']
+            shapes = dl.shape[0]
+            for (i, row) in dl.iterrows():
+                print(f'\n下载进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
 
-                _ending = dl.loc[i, 'EndDate']
+                id_ = row['id']
+                stock_name = row['name']
+                stock_code = row['code']
 
-                ending = None  # 下载数据的日期
+                escode = row['EsCode']
+                classification = row['Classification']
 
-                days = current - _ending
-
-                days = days.days
+                record_ending = row['EndDate']
+                days = current - record_ending
+                days = days.days  # 距当前的天数， 判断下载几天的数据
 
                 if not days:
-                    print(f'无最新1m数据: {name}, {code_};')
+                    print(f'无最新1m数据: {stock_name}, {stock_code};')
                     continue
 
                 days = min(5, days)
-
-                data = pd.DataFrame()  # 1m数据
-
-                print(f'\n下载进度：\n总股票数: {dl.shape[0]}个; 剩余股票: {dl.shape[0] - i}个;')
-
-                if classification != '行业板块':  # 下载个股1m数据
-                    data, ending = stock_1m(escode, days)
-
-                if classification == '行业板块':
+                if classification == '行业板块':  # 下载行业板块 1m数据
                     data, ending = board_1m(escode, days)
 
-                    if data.shape[0]:
-                        data.loc[:, 'money'] = 0
+                else:  # 下载个股 1m数据
+                    data, ending = stock_1m(escode, days)
 
-                if data.shape[0]:
-                    select = pd.to_datetime(_ending + pd.Timedelta(days=1))
-                    data = data[data['date'] > select]
+                if data.empty:  # 判断下载数据是否为空
+                    print(f'无最新1m数据: {stock_name}, {stock_code};')
+                    continue
+
+                select = pd.to_datetime(record_ending + pd.Timedelta(days=1))
+                data = data[data['date'] > select]  # 筛选出重复数据；
 
                 # 判断是否保存数据 及 更新记录表格
+                if data.empty:
+                    print(f'无最新1m数据: {stock_name}, {stock_code};')
+                    continue
+
                 ending = pd.to_datetime(ending)
-
-                if data.shape[0] and ending > _ending:
-
+                if ending > record_ending:
+                    # todo 将下载的1分钟数据，同时保存至 data 1m 文件夹中， 理由： 方便不同电脑更新 1m数据
                     try:
                         # 有时保存数据会出现未知错误;
                         # 保存数据， 保存 1m数据;
                         year_ = ending.year
-                        StockData1m.append_1m(code_=code_, year_=str(year_), data=data)
+                        StockData1m.append_1m(code_=stock_code, year_=str(year_), data=data)
 
                         sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
                         set EndDate='{ending}', RecordDate = '{current}', 
@@ -139,15 +139,16 @@ class DataDailyRenew:
                         sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
                         set RecordDate = '{current}', EsDownload = 'failed' where id={id_}; '''
                         LoadBasicInform.basic_execute_sql(sql)
-                        print(f'股票：{name}, {code_}存储数据异常: {ex}')
+                        # todo 加载日志
+                        print(f'股票：{stock_name}, {stock_code}存储数据异常: {ex}')
 
-                if data.shape[0] and ending == _ending:
+                if ending == record_ending:
                     # data record date equal download end date ,just renew record date
                     sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} set 
                     EndDate = '{ending}', RecordDate = '{current}' where id = {id_}; '''
                     LoadBasicInform.basic_execute_sql(sql)
 
-                    print(f'{LoadBasicInform.tb_minute} 数据更新成功: {name}, {code_}')
+                    print(f'{LoadBasicInform.tb_minute} 数据更新成功: {stock_name}, {stock_code}')
 
                 time.sleep(2)
 
@@ -265,4 +266,4 @@ class RMDownloadData(DataDailyRenew):
 if __name__ == '__main__':
     rn = DataDailyRenew()
     # rn.download_1mData()
-    rn.renew_NorthFunds()
+    rn.download_1mData()
