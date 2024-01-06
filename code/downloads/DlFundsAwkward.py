@@ -126,11 +126,13 @@ class AnalysisFundsAwkward:
 
     def normalization_all_data(self):
 
-        for index in self.pool.index:
-            stock_name = self.pool.loc[index, 'name']
-            id_ = self.pool.loc[index, 'id']
+        for _, row in self.pool.iterrows():
+
+            stock_name = row['name']
+            id_ = row['id']
             data_ = self.awkward[self.awkward['stock_name'] == stock_name].groupby('Date').count().reset_index()
-            data_.loc[:, 'stock_name'] = stock_name
+
+            data_['stock_name'] = stock_name
 
             data_ = data_.rename(columns={'Selection': 'count'})
             data_['TrendCount'] = data_['count'] - data_['count'].shift(1)
