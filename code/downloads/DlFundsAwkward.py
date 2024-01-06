@@ -18,17 +18,17 @@ class DownloadFundsAwkward:
 
         self.DlDate = pd.to_datetime(Dl_Date).date()
         self.pending = None
-        # self.db = 'funds_awkward_stock'
 
     def pending_data(self):
-        record = aw.load_top500()  # alc.pd_read(database=self.db, table=tb)
+
+        record = aw.load_top500()
 
         pending = record[(record['Date'] == self.DlDate)]
 
         if not pending.shape[0]:
             st = 'pending'
-            record.loc[:, 'Date'] = self.DlDate
-            record.loc[:, 'Status'] = st
+            record['Date'] = self.DlDate
+            record['Status'] = st
             id_ = record.sort_values(by=['id']).iloc[0]['id']
 
             sql = f''' update {aw.db_funds_awkward}.{aw.tb_funds_500} 
@@ -48,7 +48,8 @@ class DownloadFundsAwkward:
             id_ = self.pending.loc[index, 'id']
             select = self.pending.loc[index, 'Selection']
 
-            print(f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n当前股票：{funds_name},{funds_code};')
+            print(
+                f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n当前股票：{funds_name},{funds_code};')
             try:
                 data = dle.funds_awkward(funds_code)
 
@@ -57,10 +58,10 @@ class DownloadFundsAwkward:
                 data = dle.funds_awkward_by_driver(funds_code)
 
             if data.shape[0]:
-                data.loc[:, 'funds_name'] = funds_name
-                data.loc[:, 'funds_code'] = funds_code
-                data.loc[:, 'Date'] = self.DlDate
-                data.loc[:, 'Selection'] = select
+                data['funds_name'] = funds_name
+                data['funds_code'] = funds_code
+                data['Date'] = self.DlDate
+                data['Selection'] = select
 
                 data = data[['stock_name', 'funds_name', 'funds_code', 'Date', 'Selection']]
                 aw.append_fundsAwkward(data)
@@ -112,10 +113,10 @@ class AnalysisFundsAwkward:
 
     def __init__(self, dl_date):
 
-        self.DlDate = pd.to_datetime(dl_date)  # .date()
-        self.pool = pl.load_StockPool()  # database='StockPool', table='StockPool'
+        self.DlDate = pd.to_datetime(dl_date)
+        self.pool = pl.load_StockPool()
 
-        self.awkward = aw.load_fundsAwkward()  # database='funds_awkward_stock', table='FundsAwkward'
+        self.awkward = aw.load_fundsAwkward()
         self.awkward = self.awkward[self.awkward['Selection'] == 1]
 
         self.num_max = 200
@@ -163,10 +164,10 @@ class AnalysisFundsAwkward:
                 data_ = self.awkward[self.awkward['stock_name'] == stock_name
                                      ].groupby('Date').count().tail(3).reset_index()
 
-                data_.loc[:, 'stock_name'] = stock_name
+                data_['stock_name'] = stock_name
                 data_ = data_.rename(columns={'Selection': 'count'})
-                data_.loc[:, 'TrendCount'] = data_['count'] - data_['count'].shift(1)
-                data_.loc[:, 'score'] = round((data_['count'] - self.num_min) / (self.num_max - self.num_min), 4)
+                data_['TrendCount'] = data_['count'] - data_['count'].shift(1)
+                data_['score'] = round((data_['count'] - self.num_min) / (self.num_max - self.num_min), 4)
                 data_ = data_[['stock_name', 'count', 'TrendCount', 'score', 'Date']].tail(1)
 
                 if data_.shape[0]:
