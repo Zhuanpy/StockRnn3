@@ -5,9 +5,7 @@ from selenium import webdriver
 
 
 def WebDriver():
-    # TODO: how to make web driver available
     driver = webdriver.Chrome()
-
     return driver
 
 

@@ -241,8 +241,6 @@ class DownloadData:
 
     @classmethod
     def funds_to_stock2(cls):
-
-        # TODO
         """
         ideal:
         try to use the web link download data;

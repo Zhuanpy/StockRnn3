@@ -4,7 +4,13 @@ import shutil
 from datetime import datetime, timedelta
 
 
-def create_monthly_folders(start_month, end_month):
+def create_monthly_folders(start_month: str, end_month: str):
+    """
+    parameters: start_month: str, 格式：YYYY-MM  开始月份
+    parameters: end_month: str ,  格式：YYYY-MM  结束月份
+
+    """
+
     script_directory = os.path.dirname(__file__)
     source_folder = os.path.join(script_directory, "CommonFile")
 
@@ -29,9 +35,6 @@ def create_monthly_folders(start_month, end_month):
 
 # 输入
 if __name__ == "__main__":
-    start_month = "2022-06"  # input("请输入开始月份（格式：YYYY-MM）：")
-    end_month = "2024-12"  # input("请输入结束月份（格式：YYYY-MM）：")
-
-    # target_folder = "目标文件夹"  # 请替换成你的实际目标文件夹路径
-    # 调用函数
-    create_monthly_folders(start_month, end_month)
+    start = "2022-04"
+    end = "2024-12"
+    create_monthly_folders(start, end)

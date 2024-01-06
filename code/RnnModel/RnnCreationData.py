@@ -502,17 +502,14 @@ class TrainingDataCalculate(ModelData):
         return self.data_15m
 
     def calculation_single(self):
+        try:
+            path = find_file_in_paths(self.month, 'json', f'{self.stock_code}.json')  # 返回 json 路径
+            record = ReadSaveFile.read_json_by_path(path)
+            self.RecordEndDate = record[self.stock_code]['RecordEndDate']
+            self.RecordStartDate = record[self.stock_code]['NextStartDate']
 
-        # TODO 这里得修改  self._month:
-        if self._month:
-
-            try:
-                record = ReadSaveFile.read_json(self._month, self.stock_code)
-                self.RecordEndDate = record[self.stock_code]['RecordEndDate']
-                self.RecordStartDate = record[self.stock_code]['NextStartDate']
-
-            except ValueError:
-                pass
+        except ValueError:
+            pass
 
         self.data_15m = self.data_15m_calculate()
 
