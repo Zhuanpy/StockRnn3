@@ -20,7 +20,7 @@ def my_headers(pp: str):
     """
 
     _path = file_root()
-    pph = f'{_path}/pp/EastMoney/header_{pp}.txt'
+    pph = f'{_path}/data/password/EastMoney/header_{pp}.txt'
     f2 = open(pph, 'r')
     lines = f2.readlines()
     h = {}
@@ -41,7 +41,7 @@ def my_url(pp: str):
     """
 
     _path = file_root()
-    ppl = f'{_path}/pp/EastMoney/Url_{pp}.txt'
+    ppl = f'{_path}/data/password/EastMoney/Url_{pp}.txt'
     f2 = open(ppl, 'r')
     lines = f2.readlines()
     url = lines[0]
@@ -96,10 +96,10 @@ def funds_data_clean(data):
     data = data.rename(columns={1: '板块', 5: 'NkPT市值', 6: 'NkPT占板块比',
                                 7: 'NkPT占北向资金比', 9: 'NRPT市值', 12: 'NRPT占北向资金比'})
 
-    data.loc[:, 'Unit_NKPT'] = data['NkPT市值'].str[-1:]
-    data.loc[:, 'NkPT市值'] = data['NkPT市值'].str[:-1].astype(float) * data.Unit_NKPT.apply(lambda x: conversion(x))
-    data.loc[:, 'Unit_NRPT'] = data['NRPT市值'].str[-1]
-    data.loc[:, 'NRPT市值'] = data['NRPT市值'].str[:-1].astype(float) * data.Unit_NRPT.apply(lambda x: conversion(x))
+    data['Unit_NKPT'] = data['NkPT市值'].str[-1:]
+    data['NkPT市值'] = data['NkPT市值'].str[:-1].astype(float) * data.Unit_NKPT.apply(lambda x: conversion(x))
+    data['Unit_NRPT'] = data['NRPT市值'].str[-1]
+    data['NRPT市值'] = data['NRPT市值'].str[:-1].astype(float) * data.Unit_NRPT.apply(lambda x: conversion(x))
 
     data = data.drop(columns=['Unit_NKPT', 'Unit_NRPT'])
 
