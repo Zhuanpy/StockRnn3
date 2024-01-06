@@ -5,6 +5,13 @@ import os
 _path = file_root()  # 获取root file 路径
 
 
+def sql_password():
+    path_ = os.path.join(_path, 'data', 'password', 'sql.txt')
+    f = open(path_, 'r')
+    w = f.read()
+    return w
+
+
 def my_headers(pp: str):
     """
     read header data

@@ -1,19 +1,11 @@
 import pymysql
-from root_ import file_root
+from code.password.parser import sql_password
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
-
-
-def sql_password():
-    path_ = file_root()
-    path_ = f'{path_}/data/password/sql.txt'
-    f = open(path_, 'r')
-    w = f.read()
-    return w
 
 
 def sql_cursor(database: str):
@@ -47,7 +39,6 @@ def my_conn(database: str):
 
 
 def create_session(database: str):
-
     conn = my_conn(database)
     engine = create_engine(conn)
 
@@ -84,5 +75,5 @@ if __name__ == '__main__':
     print(path)
     alc = MysqlAlchemy()
 
-    data = alc.pd_read(database='stock_basic_information', table='record_stock_minute')
-    print(data)
+    data_ = alc.pd_read(database='stock_basic_information', table='record_stock_minute')
+    print(data_)
