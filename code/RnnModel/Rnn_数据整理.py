@@ -4,7 +4,6 @@ from code.MySql.LoadMysql import StockData15m
 
 
 def transfer_data(stock_list: list):
-
     """
     将 CSV 数据，整理进 MYSQL 中
     stock_list = ['600309', '002475']

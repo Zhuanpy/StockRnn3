@@ -147,7 +147,6 @@ class TrainingDataCalculate(ModelData):
 
     def rnn_parser_data(self):
         data = ReadSaveFile.read_json(self.month, self.stock_code)
-
         if self.stock_code not in data:
             data[self.stock_code] = {}
             ReadSaveFile.save_json(data, self.month, self.stock_code)
@@ -187,7 +186,6 @@ class TrainingDataCalculate(ModelData):
 
         # 查看参数
         try:
-
             """
             读取历史的json 数据 ；
             文件夹递减的方法搜索json 数据 ；
@@ -312,11 +310,14 @@ class TrainingDataCalculate(ModelData):
         daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
 
         # 读取旧参数
-        if self._month:
-            parser_data = ReadSaveFile.read_json(self._month, self.stock_code)
+        try:
+            file_name = f"{self.stock_code}.json"
+            file_path = find_file_in_paths(self.month, 'json', file_name)
+
+            parser_data = ReadSaveFile.read_json_by_path(file_path)
             pre_daily_volume_max = parser_data[self.stock_code][DailyVolEma]
 
-        else:
+        except:
             pre_daily_volume_max = daily_volume_max
 
         # 使用 max 函数一行完成最大值的更新
@@ -330,7 +331,7 @@ class TrainingDataCalculate(ModelData):
 
         self.data_15m[DailyVolEmaParser] = self.data_15m[DailyVolEmaParser].fillna(method='ffill')
 
-        # 排除最后 signalTimes , 可能周期并未走完整
+        # 排除最后 signal Times , 可能此周期并未走完整
         last_signal_times = self.data_15m.iloc[-1][SignalTimes]
         self.data_15m = self.data_15m[self.data_15m[SignalTimes] != last_signal_times]
 
