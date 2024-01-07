@@ -17,8 +17,10 @@ def sql_cursor(database: str):
 
 
 def execute_sql(database: str, sql: str):
+
     cursor = sql_cursor(database)
     cursor.execute(sql)
+
     d = cursor.fetchall()
     cursor.close()
     return d

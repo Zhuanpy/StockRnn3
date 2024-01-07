@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import os
 from keras.models import load_model
 from keras import backend as k
 from code.downloads.DlDataCombine import download_1m
@@ -26,7 +27,7 @@ class Parsers:
         self.lines, self.line = Useful.dashed_line(50)
         self._path = file_root()
         # 股票基础变量
-        self.stock_name, self.stock_code, self.stock_id, self.months = None, None, None, None
+        self.stock_name, self.stock_code, self.stock_id, self.month_parsers = None, None, None, None
 
         self.jsons = None
         self.freq = freq
@@ -66,13 +67,18 @@ class ModelData(Parsers):
         self.db_rnn_model, self.tb_rnn_record = 'rnn_model', 'RunRecord'
 
     def read_1m(self):
+
+        # 加载RnnModel数据
         self.records = LoadRnnModel.load_run_record()
+
+        # 筛选出特定股票代码的记录
         self.records = self.records[self.records['code'] == self.stock_code]
 
         time1m = pd.Timestamp('today') + pd.Timedelta(days=-150)
         self.time_15m = self.records.iloc[0]['Time15m']
 
         try:
+            # 如果15分钟级别数据的时间在过去150天内，则向前推10天
             if self.time_15m > time1m:
                 self.time_15m = self.time_15m + pd.Timedelta(days=-10)
 
@@ -90,7 +96,7 @@ class ModelData(Parsers):
             data_ = download_1m(self.stock_name, self.stock_code, days=1)
 
             path = f'{self._path}/data/input/monitor/1m/{self.stock_code}.csv'
-            if data_.shape[0]:
+            if not data_.empty:
                 data_.to_csv(path, index=False)
 
             else:
@@ -140,7 +146,8 @@ class ModelData(Parsers):
             StockData15m.data15m_execute_sql(sql2)
 
         new = self.data_15m[self.data_15m['date'] > _end_date]
-        if new.shape[0]:
+
+        if not new.empty:
             StockData15m.append_15m(data=new, code_=self.stock_code)
 
             signalTimes = self.data_15m[self.data_15m['date'] >= _end_date].iloc[0]['SignalTimes']
@@ -174,7 +181,7 @@ class ModelData(Parsers):
                 self.jsons['RecordEndSignal'] = signal_
                 self.jsons['RecordEndSignalTimes'] = SignalTimes_
                 self.jsons['RecordEndSignalStartTime'] = SignalStart_
-                ReadSaveFile.save_json(dic=self.jsons, months=self.months, code=self.stock_code)  # 更新参数
+                ReadSaveFile.save_json(dic=self.jsons, months=self.month_parsers, code=self.stock_code)  # 更新参数
 
     def daily_data(self):
         data = ResampleData.resample_1m_data(data=self.data_1m, freq='day')
@@ -283,7 +290,7 @@ class ModelData(Parsers):
         for key, value in dic.items():
             self.column2normal(key, value)
 
-        self.data_15m.loc[:, 'ReTrends'] = self.data_15m['close'] - self.data_15m['EmaMid']
+        self.data_15m['ReTrends'] = self.data_15m['close'] - self.data_15m['EmaMid']
 
         self.data_15m = self.data_15m.replace([np.inf, -np.inf], np.nan)
 
@@ -317,7 +324,8 @@ class DlModel(Parsers):
 
     def predictive_value(self, model_name, x):
         k.clear_session()
-        path = f'{self._path}/data/{self.months}/model/{model_name}_{self.stock_code}.h5'
+        file_name = f'{model_name}_{self.stock_code}.h5'
+        path = os.path.join(self._path, 'data', self.month_parsers, 'model', file_name)
         model = load_model(path)
         val = model.predict(x)
         val = val[0][0]
@@ -394,6 +402,7 @@ class UpdateData(Parsers):
         self._limitTradeTiming = None
 
     def update_StockPool(self):
+
         sql = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_pool} set 
         close = '{self.close}', 
         ExpPrice = '{self.ExpPrice}',
@@ -443,20 +452,29 @@ class TradingAction(Parsers):
 
     def __init__(self):
         Parsers.__init__(self)
-        # pass
 
     def buy_action(self):
 
-        if self.signal == -1 and self.reTrend == 1:  # 趋势反转 买入
+        # 条件1：趋势反转买入
+        trend_reversal_condition = (self.signal == -1) and (self.reTrend == 1)
+
+        # 条件2：跌入底部触发信号买入
+        bottom_signal_condition = (self.signal == -1) and (self.tradAction == 1)
+
+        if trend_reversal_condition or bottom_signal_condition:
             self.buyAction = True
 
-        if self.signal == -1 and self.tradAction == 1:  # 跌入底部触发信号买入
-            self.buyAction = True
+        # if self.signal == -1 and self.reTrend == 1:  # 趋势反转 买入
+        #     self.buyAction = True
+        #
+        # if self.signal == -1 and self.tradAction == 1:  # 跌入底部触发信号买入
+        #     self.buyAction = True
 
 
 class PredictionCommon(ModelData, DlModel, UpdateData):
 
-    def __init__(self, stock: str, months: str, monitor: bool, check_date, alpha=1, stopLoss=None, position=None):
+    def __init__(self, stock: str, month_parsers: str, monitor: bool, check_date, alpha=1, stopLoss=None,
+                 position=None):
 
         ModelData.__init__(self)
         DlModel.__init__(self)
@@ -465,9 +483,9 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.position = position
-        self.months, self.monitor = months, monitor
+        self.month_parsers, self.monitor = month_parsers, monitor
         self.stopLoss = stopLoss
-        self.jsons = ReadSaveFile.read_json(self.months, self.stock_code)
+        self.jsons = ReadSaveFile.read_json(self.month_parsers, self.stock_code)
 
         # 生成预测数据
         if monitor:
@@ -867,7 +885,7 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 if __name__ == '__main__':
     month_ = '2022-02'
     _date = '2022-10-17'
-    stock = '002475'
+    stock_ = '002475'
     monitor = False
-    rm = PredictionCommon(stock=stock, months=month_, monitor=monitor, check_date=_date)
+    rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=monitor, check_date=_date)
     rm.single_stock()

@@ -7,13 +7,66 @@ import matplotlib.pyplot as plt
 import multiprocessing
 from code.Evaluation.CountPool import PoolCount
 from Rnn_utils import reset_id_time, reset_record_time, date_range
-
+import logging
 plt.rcParams['font.sans-serif'] = ['FangSong']
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
 
-def stock_evaluate(day_, _num, num_, data, months, check_model):
+class StockEvaluator:
+
+    DB_RNN = LoadRnnModel.db_rnn
+    TB_TRAIN_RECORD = LoadRnnModel.tb_train_record
+
+    def __init__(self, day, start_index, end_index, data, month, check_model):
+
+        self.day = day
+        self.start_index = start_index
+        self.end_index = end_index
+        self.data = data
+        self.month = month
+        self.check_model = check_model
+
+    def evaluate_stock(self, index):
+        stock_code = self.data.loc[index, 'code']
+        record_id = self.data.loc[index, 'id']
+        check_date = pd.Timestamp('now').date()
+
+        try:
+            run = PredictionCommon(stock=stock_code, months=self.month, monitor=False, check_date=self.day)
+            run.single_stock()
+
+            if self.check_model:
+                self.update_model_check_status(record_id, check_date, 'success')
+
+        except Exception as ex:
+            logging.error(f'Error: {ex}')
+
+            if self.check_model:
+                self.update_model_check_status(record_id, check_date, 'error')
+
+    def update_model_check_status(self, record_id, check_date, status):
+
+        sql = f'''
+            UPDATE {self.DB_RNN}.{self.TB_TRAIN_RECORD} SET 
+            ModelCheckTiming = '{pd.Timestamp.now()}',
+            ModelCheck = '{status}',
+            ModelError = '{status}',
+            ModelCheckTiming = '{check_date}' WHERE id={record_id};
+        '''
+
+        LoadRnnModel.rnn_execute_sql(sql)
+
+    def run_evaluation(self):
+        count = 0
+        for index in range(self.start_index, self.end_index):
+            print(f'当前进度，剩余{self.end_index - self.start_index - count}；')
+            self.evaluate_stock(index)
+            count += 1
+
+
+def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
+
     count = 0
 
     for index in range(_num, num_):
@@ -29,15 +82,17 @@ def stock_evaluate(day_, _num, num_, data, months, check_model):
 
         try:
 
-            run = PredictionCommon(stock=stock_, months=months, monitor=False, check_date=day_)
+            run = PredictionCommon(stock=stock_, months=month_parsers, monitor=False, check_date=day_)
             run.single_stock()
 
             if check_model:
+
                 sql2 = f'''update {db}.{tb} set 
                 ModelCheckTiming = '{pd.Timestamp.now()}',
                 ModelCheck = 'success',
                 ModelError = 'success',
                 ModelCheckTiming = '{check_date}' where id={id_};'''
+
                 LoadRnnModel.rnn_execute_sql(sql2)
 
         except Exception as ex:
@@ -54,34 +109,37 @@ def stock_evaluate(day_, _num, num_, data, months, check_model):
         count += 1
 
 
-def multiprocessing_count_pool(day_, months='2022-02', check_model=False):
+def multiprocessing_count_pool(day_, month_parsers='2022-02', check_model=False):
+
     data = StockPoolData.load_StockPool()
 
-    shape_ = data.shape[0]
+    if not data.empty:
 
-    print(f'处理日期{day_}， 处理个数：{shape_}')
+        shape_ = data.shape[0]
 
-    l1 = shape_ // 3
-    l2 = shape_ // 3 * 2
+        print(f'处理日期{day_}， 处理个数：{shape_}')
 
-    p1 = multiprocessing.Process(target=stock_evaluate, args=(day_, 0, l1, data, months, check_model,))
-    p2 = multiprocessing.Process(target=stock_evaluate, args=(day_, l1, l2, data, months, check_model,))
-    p3 = multiprocessing.Process(target=stock_evaluate, args=(day_, l2, shape_, data, months, check_model,))
+        l1 = shape_ // 3
+        l2 = shape_ // 3 * 2
 
-    p1.start()
-    p2.start()
-    p3.start()
+        p1 = multiprocessing.Process(target=stock_evaluate, args=(day_, 0, l1, data, month_parsers, check_model,))
+        p2 = multiprocessing.Process(target=stock_evaluate, args=(day_, l1, l2, data, month_parsers, check_model,))
+        p3 = multiprocessing.Process(target=stock_evaluate, args=(day_, l2, shape_, data, month_parsers, check_model,))
 
-    p1.join()
-    p2.join()
-    p3.join()
+        p1.start()
+        p2.start()
+        p3.start()
+
+        p1.join()
+        p2.join()
+        p3.join()
 
 
 class RMHistoryCheck:
 
-    def __init__(self, _date=None, date_=None, months='2022-02'):
+    def __init__(self, _date=None, date_=None, month_parsers='2022-02'):
 
-        self.months = months
+        self.month_parsers = month_parsers
 
         if not date_:
             self.date_ = pd.Timestamp.now().date()
@@ -95,19 +153,20 @@ class RMHistoryCheck:
         else:
             self._date = pd.to_datetime(_date).date()
 
-    def check1stock(self, Stock, reset_record=False):
+    def check1stock(self, stock, reset_record=False):
 
-        name, code, id_ = Stocks(Stock)
+        name, code, id_ = Stocks(stock)
 
         if reset_record:
             reset_id_time(id_, self._date)
 
         dates = date_range(self._date, self.date_)
         for d_ in dates:
-            run = PredictionCommon(Stock=name, months=self.months, monitor=False, check_date=d_)
+            run = PredictionCommon(stock=name, months=self.month_parsers, monitor=False, check_date=d_)
             run.single_stock()
 
     def loop_by_date(self):
+
         list_day = date_range(self._date, self.date_)
         reset_record_time(list_day[0])
 
@@ -129,6 +188,6 @@ class RMHistoryCheck:
 if __name__ == '__main__':
     start_ = '2022-10-26'
     # end_ = '2022-10-26'
-    months = '2022-02'
+    month_ = '2022-02'
     rm = RMHistoryCheck(_date=start_)
     rm.loop_by_date()

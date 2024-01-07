@@ -120,7 +120,6 @@ class StockPoolData:
 
 
 class LoadNortFunds:
-
     db_funds = 'northfunds'
     tb_amount = 'amount'
     tb_toboard = 'toboard'
@@ -162,7 +161,6 @@ class LoadNortFunds:
 
 
 class LoadRnnModel:
-
     db_rnn = 'rnn_model'
     tb_train_record = 'trainrecord'
     tb_run_record = 'runrecord'
@@ -183,7 +181,6 @@ class LoadRnnModel:
 
 
 class LoadFundsAwkward:
-
     db_funds_awkward = 'funds_awkward_stock'
     tb_funds_500 = 'topfunds500'
     tb_awkwardNormalization = 'awkward_normalization'
@@ -221,7 +218,6 @@ class LoadFundsAwkward:
 
 
 class LoadBasicInform:
-
     db_basic = 'stock_basic_information'
     tb_minute = 'record_stock_minute'
     tb_record_north_funds = 'recordnorthfunds'
@@ -246,7 +242,6 @@ class LoadBasicInform:
 
 
 class LoadBasic:
-
     # stockbasic.basic
 
     db = 'stockbasic'
