@@ -304,7 +304,7 @@ class CombineMinuteData:
             data_1ma = data_1ma.rename(columns={'trade_date': 'date'})
             data_1ma = data_1ma[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
 
-        except pandas.io.sql.DatabaseError:
+        except pandas.errors.DatabaseError:
             data_1ma = pd.DataFrame(data=None)
 
         # 读取 stock_1m_data;
@@ -313,15 +313,15 @@ class CombineMinuteData:
         try:
             data_1mb = alc.pd_read(database=db_b, table=tb_b)
 
-        except pandas.io.sql.DatabaseError:
+        except pandas.errors.DatabaseError:  # pandas.errors.DatabaseError
             data_1mb = pd.DataFrame(data=None)
 
         # data combine
         data_all = pd.concat([data_1ma, data_1mb]).drop_duplicates(subset=['date']).sort_values(
             by=['date']).reset_index(drop=True)
 
-        st_time = data_all.iloc[0]['date'].date()
-        ed_time = data_all.iloc[-1]['date'].date()
+        start_time = data_all.iloc[0]['date'].date()
+        end_time = data_all.iloc[-1]['date'].date()
 
         alc.pd_replace(data=data_all, database=db_b, table=tb_b)
 

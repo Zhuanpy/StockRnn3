@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 from keras import Sequential
 from keras.utils import to_categorical
 from keras.layers import Dense
@@ -18,13 +19,13 @@ pd.set_option('display.width', 5000)
 class BuiltModel:
 
     def __init__(self):
-        self.path_ = f'data/output/MacdTrend'
+        self.model_path = os.path.join('data', 'output', 'MacdTrend' )
 
     def load_data(self):
 
         # 导入数据 train data , test data
-        X = np.load(f'{self.path_}/X.npy')
-        Y = np.load(f'{self.path_}/Y.npy')
+        X = np.load(f'{self.model_path}/X.npy')
+        Y = np.load(f'{self.model_path}/Y.npy')
 
         index = np.arange(X.shape[0])
         np.random.shuffle(index)
@@ -66,7 +67,7 @@ class BuiltModel:
         model.add(Dense(units=4, activation='softmax'))
 
         try:
-            weight_path = f'{self.path_}/model.h5'
+            weight_path = f'{self.model_path}/model.h5'
             model.load_weights(filepath=weight_path)
             epochs = 30
 
@@ -80,10 +81,10 @@ class BuiltModel:
         print(f'loss: {loss}, accuracy: {accuracy};')
 
         # 保存参数
-        model.save_weights(f'{self.path_}/weight.h5')
+        model.save_weights(f'{self.model_path}/weight.h5')
 
         # 保存模型
-        model.save(f'{self.path_}/model.h5')
+        model.save(f'{self.model_path}/model.h5')
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ def full_running(month_, _start):
     model = RMBuiltModel(month_)
     model.train_remaining_models()
 
-    check = RMHistoryCheck(months=month_)
+    check = RMHistoryCheck(month_parsers=month_)
     check.loop_by_date()
 
 

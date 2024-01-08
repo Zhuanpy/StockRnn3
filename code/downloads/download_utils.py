@@ -2,6 +2,7 @@
 
 import requests
 from selenium import webdriver
+import logging
 
 
 def WebDriver():
@@ -19,7 +20,12 @@ def page_source(url, headers=None, cookies=None):
 
             return r
 
-        except requests.exceptions.RequestException:
+        except requests.exceptions.Timeout as e:
+            logging.error(f"Timeout error: {e}")
+            i += 1
+
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Request error: {e}")
 
             i += 1
 

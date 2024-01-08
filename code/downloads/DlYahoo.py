@@ -40,7 +40,7 @@ class DownloadData:
         cd = yahoo_code(stock_code)
         web_title = f'https://query1.finance.yahoo.com/v8/finance/chart/{cd}?symbol={cd}&'
 
-        str_start = time.strptime(pd.Timestamp().today().date().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
+        str_start = time.strptime(pd.Timestamp('now').date().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
         str_end = time.strptime((pd.Timestamp().today() + pd.Timedelta(days=1)).date().strftime('%Y-%m-%d %H:%M:%S'),
                                 '%Y-%m-%d %H:%M:%S')
 

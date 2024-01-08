@@ -6,12 +6,15 @@ from code.Normal import StockCode
 from code.MySql.sql_utils import Stocks
 from code.parsers.BollingerParser import *
 from matplotlib import pyplot as plt
+from matplotlib.font_manager import FontProperties
 from code.RnnModel.RnnRunModel import PredictionCommon
 from code.TrendDistinguish.TrendDistinguishRunModel import TrendDistinguishModel
 from root_ import file_root
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
+
+font = FontProperties(fname=r'C:\Windows\Fonts\SimSun.ttf', size=14)
 
 
 def open_data_file():
@@ -73,7 +76,7 @@ class ScoreStockPool(TrendDistinguishModel):
         try:
 
             # 获取趋势 df数据  和 得分
-            data, score = self.distinguish_1m(code_=code, freq='120m', returnFreq=True, date_=None)
+            data, score = self.distinguish_1m(stock_code=code, freq='120m', returnFreq=True, date_=None)
             # print(data)
             # print(score)
             # exit()
@@ -212,7 +215,6 @@ class ScoreStockPool(TrendDistinguishModel):
                 self.plotF(ax[1])
 
             if self.dataB.shape[0] and not self.dataF.shape[0]:
-
                 # 更新股票池 个股对应板块数据
                 sql1 = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_pool} set 
                 BoardBoll= '{self.scoreB}',
@@ -475,7 +477,7 @@ class UpdateFakeStock(UpdateTradeHistory):  # 更新模拟账户交易数据
 
             date_ = pd.to_datetime(date_, format='%Y%m%d').date()
 
-            predict = PredictionCommon(Stock=self.code, months=self.months, monitor=False, check_date=date_)
+            predict = PredictionCommon(stock=self.code, month_parsers=self.months, monitor=False, check_date=date_)
 
             data15 = predict.calculate_check_data()
             data15 = data15[data15['date'] >= dateTime_]
@@ -629,7 +631,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
 
                 date_ = pd.to_datetime(date_, format='%Y%m%d').date()
 
-                predict = PredictionCommon(Stock=code_, months=self.months, monitor=False, check_date=date_)
+                predict = PredictionCommon(stock=code_, month_parsers=self.months, monitor=False, check_date=date_)
                 data15 = predict.calculate_check_data()
                 data15 = data15[data15['date'] >= dateTime_]
 

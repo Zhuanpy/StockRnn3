@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# from jqdatasdk import *
+from jqdatasdk import *
 
 # auth('13975124715', '651748264Zz')
 
@@ -72,8 +72,8 @@ class DownloadData:
         # name = '林业II'
         l2 = get_industry_stocks(code)
         l2 = pd.DataFrame(data=l2, columns=['stock_code'])
-        l2.loc[:, 'industry_code'] = code
-        l2.loc[:, 'industry_name'] = name
+        l2['industry_code'] = code
+        l2['industry_name'] = name
         return l2
 
     @classmethod

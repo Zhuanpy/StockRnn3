@@ -7,6 +7,7 @@ from code.Evaluation.CountPool import count_board_by_date
 
 
 def distinguish_board(code_, date_, id_=None, freq='120m'):
+
     """
     辨别 board trend;
     """
@@ -21,7 +22,7 @@ def distinguish_board(code_, date_, id_=None, freq='120m'):
         name, code_, id_ = Stocks(code_)
 
     dis = TrendDistinguishModel()
-    label, value_ = dis.distinguish_1m(code_=code_, freq=freq, date_=date_)
+    label, value_ = dis.distinguish_1m(stock_code=code_, freq=freq, date_=date_)
 
     # 更新数据
     sql = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_board} 

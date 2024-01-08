@@ -37,7 +37,7 @@ class RMMonitor:
                   f'剩余股票: {(end_ - start_ - i)}个;\n当前股票：{Stock};\n')
 
             try:
-                run = PredictionCommon(stock=Stock, months=self.months, monitor=True, check_date=None)
+                run = PredictionCommon(stock=Stock, month_parsers=self.months, monitor=True, check_date=None)
                 run.single_stock()
 
             except Exception as ex:
@@ -89,8 +89,7 @@ class RMMonitor:
             Stock = data.loc[index, 'code']
             stop_loss = data.loc[index, 'StopLoss']
 
-            run = PredictionCommon(Stock=Stock, months=self.months, monitor=True,
-                                   check_date=None, stopLoss=stop_loss, position=1)
+            run = PredictionCommon(stock=Stock, month_parsers=self.months, monitor=True, check_date=None, stopLoss=stop_loss, position=1)
             run.single_stock()
 
         self.show_results()

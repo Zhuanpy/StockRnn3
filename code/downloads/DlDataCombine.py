@@ -95,7 +95,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
                         StockData1m.replace_1m(code_=code, year_=str(year_), data=data1m)
 
-                    except pandas.io.sql.DatabaseError:
+                    except pd.errors.DatabaseError:
                         StockData1m.replace_1m(code_=code, year_=str(year_), data=data1m)
 
                     # 更新参数

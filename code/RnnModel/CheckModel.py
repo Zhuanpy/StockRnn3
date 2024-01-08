@@ -33,7 +33,7 @@ class StockEvaluator:
         check_date = pd.Timestamp('now').date()
 
         try:
-            run = PredictionCommon(stock=stock_code, months=self.month, monitor=False, check_date=self.day)
+            run = PredictionCommon(stock=stock_code,month_parsers=self.month, monitor=False, check_date=self.day)
             run.single_stock()
 
             if self.check_model:
@@ -82,7 +82,7 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
 
         try:
 
-            run = PredictionCommon(stock=stock_, months=month_parsers, monitor=False, check_date=day_)
+            run = PredictionCommon(stock=stock_, month_parsers=month_parsers, monitor=False, check_date=day_)
             run.single_stock()
 
             if check_model:
@@ -162,7 +162,7 @@ class RMHistoryCheck:
 
         dates = date_range(self._date, self.date_)
         for d_ in dates:
-            run = PredictionCommon(stock=name, months=self.month_parsers, monitor=False, check_date=d_)
+            run = PredictionCommon(stock=name, month_parsers=self.month_parsers, monitor=False, check_date=d_)
             run.single_stock()
 
     def loop_by_date(self):
