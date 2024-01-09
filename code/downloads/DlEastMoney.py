@@ -8,6 +8,7 @@ import pandas as pd
 from download_utils import page_source, WebDriver
 from download_utils import UrlCode
 from code.password.parser import my_headers, my_url
+import logging
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -103,7 +104,6 @@ def get_1m_data(source, match=False, multiple=False):
         news = pd.DataFrame()
 
         for index in dl.drop_duplicates(subset=['day']).index:
-
             d1 = dl.loc[index, 'day']
             df1 = dl[dl['day'] == d1].reset_index(drop=True)
 
@@ -125,7 +125,7 @@ def get_1m_data(source, match=False, multiple=False):
             news = dl.iloc[1:].reset_index(drop=True)
 
         except KeyError:
-            news = pd.DataFrame()
+            return pd.DataFrame()
 
     return news
 
@@ -155,21 +155,35 @@ class DownloadData:
     def stock_1m_days(cls, code: str, days=5):
 
         """
-        # 从东方财富网下载 N days , 1分钟股票数据
+        - 从东方财富网下载 N days , 1分钟股票数据 -
+
+        Download N days of 1-minute stock data from Eastmoney.
+
+        Parameters:
+        - code (str): Stock code.
+        - num_days (int): Number of days to retrieve.
+
+        Returns:
+        - pd.DataFrame: Downloaded stock data.
+
         """
 
         headers = my_headers('stock_1m_multiple_days')
-
-        urlcode = UrlCode(code)
+        url_code = UrlCode(code)
 
         url = my_url('stock_1m_multiple_days')
 
-        url = url.format(days, urlcode)  # 东方财富分时数据网址
+        url = url.format(days, url_code)  # 东方财富分时数据网址
 
         source = page_source(url, headers=headers)
 
-        dl = get_1m_data(source, match=True, multiple=True)  # 处理下载数据
+        if not source:
+            # todo 保存下这个日志
+            # error downloading {code} data from 东方财富: {ex}'
+            logging.warning(f"Failed to retrieve data for {code}. Source is empty.")
+            return pd.DataFrame()
 
+        dl = get_1m_data(source, match=True, multiple=True)  # 处理下载数据
         show_dl('1m', code)  # 打印下载
 
         return dl
@@ -188,6 +202,13 @@ class DownloadData:
         headers = my_headers('board_1m_multiple_days')
         url = my_url('board_1m_multiple_days').format(code, days)
         source = page_source(url=url, headers=headers)
+
+        if not source:
+            # todo 保存下这个日志
+            # error downloading {code} data from 东方财富: {ex}'
+            logging.warning(f"Failed to retrieve data for {code}. Source is empty.")
+            return pd.DataFrame()
+
         dl = get_1m_data(source, match=False, multiple=True)
         show_dl('1m', code)
         return dl
@@ -473,5 +494,7 @@ if __name__ == '__main__':
     # data = DownloadData.funds_to_sectors('2022-11-15')
     # data = DownloadData.stock_1m_1day('002475')
 
-    data_ = DownloadData.stock_1m_days('002475')
-    print(data_)
+    # data_ = DownloadData.stock_1m_days('002475')
+
+    download = DownloadData.board_1m_multiple('bk1017', 5)
+    print(download)

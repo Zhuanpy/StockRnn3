@@ -48,6 +48,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
         print('无历史分时数据需下载;')
 
     if not basic.empty:
+
         years = [2018 + i for i in range(pd.Timestamp('today').year - 2018 + 1)]
         years = sorted(years, reverse=True)  # [2022, 2021, 2020, 2019, 2018]
 
@@ -60,7 +61,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                     break
 
                 name = row['name']
-                code = row[ 'code']
+                code = row['code']
                 id_ = row['id']
                 record_start = row['StartDate']
 
@@ -122,6 +123,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
 
 def collect_all_funds_to_sectors():
+
     """
     北向基金流入板块数据
     :return:
@@ -143,10 +145,9 @@ def collect_all_funds_to_sectors():
         d = d.strftime('%Y-%m-%d')
         dl = dle.funds_to_sectors(d)  # 下载数据
 
-        if dl.shape == 0:
+        if dl.empty:
             continue
 
-        print(dl.head())
         LoadNortFunds.append_funds2board(dl)
         time.sleep(5)
 

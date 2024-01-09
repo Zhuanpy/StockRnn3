@@ -3,6 +3,7 @@
 import requests
 from selenium import webdriver
 import logging
+import time
 
 
 def WebDriver():
@@ -10,10 +11,10 @@ def WebDriver():
     return driver
 
 
-def page_source(url, headers=None, cookies=None):
+def page_source(url, headers=None, cookies=None, max_retries=5, retry_delay=2):
     i = 0
 
-    while i < 5:
+    while i < max_retries:
 
         try:
             r = requests.get(url, headers=headers, cookies=cookies, timeout=(5, 10)).text
@@ -26,8 +27,11 @@ def page_source(url, headers=None, cookies=None):
 
         except requests.exceptions.RequestException as e:
             logging.error(f"Request error: {e}")
-
             i += 1
+
+        time.sleep(retry_delay)
+
+    return None
 
 
 def UrlCode(code: str):

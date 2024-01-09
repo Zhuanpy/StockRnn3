@@ -13,10 +13,11 @@ def count_daily_data(tb: str):
 
     for y in years:
         db = f'data1m{y}'
+
         try:
             d = msql.pd_read(db, tb)
 
-        except:
+        except :
             d = pd.DataFrame()
 
         if not d.shape[0]:
@@ -29,6 +30,7 @@ def count_daily_data(tb: str):
 
         # 处理成 日 K 数据
         d = rsp.resample_1m_data(d, 'day')
+
         # 合并数据
         data_day = pd.concat([data_day, d])
 

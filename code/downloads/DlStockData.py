@@ -4,49 +4,58 @@ import pandas as pd
 from code.MySql.LoadMysql import StockData1m, LoadBasicInform, LoadNortFunds
 from code.Savedata.save_download import save_1m_to_csv
 import datetime
+import logging
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
 
 
-def stock_1m(code, days):
+class StockType:
+    STOCK_1M = 'stock_1m'
+    BOARD_1M = 'board_1m'
+
+
+def download_1m_by_type(code: str, days: int, stock_type: str):
     """
-        download stock data 1m data , return download data & data end date ;
-    """
+    download stock data 1m data , return download data & data end date ;
+    Download stock 1m data from Eastmoney.
 
-    try:
-        data = dle.stock_1m_days(code, days=days)
-        date_ = data.iloc[-1]['date'].date()
+    Parameters:
+    - code (str): Stock code.
+    - days (int): Number of days to retrieve, 小于5天.
+    - stock_type (str): Type of data to download, should be 'stock_1m' or 'board_1m'.
 
-    except Exception as ex:
-        # todo 引入日志
-        print(f'从东方财富下载{code}异常：{ex};')
-        return pd.DataFrame(), None
-
-    return data, date_  # date_:  data end date;
-
-
-def board_1m(code, days):
-    """
-    download board 1m data , return download data & data end date ;
+    Returns:
+    - data (pd.DataFrame): Downloaded stock data.
+    - date_end (datetime.date or None): End date of the downloaded data, None if an error occurs.
     """
 
     try:
-        data = dle.board_1m_multiple(code, days=days)
-        date_ = data.iloc[-1]['date'].date()
-        data['money'] = 0
+        if stock_type == StockType.STOCK_1M:
+            data = dle.stock_1m_days(code, days=days)
+
+        elif stock_type == StockType.BOARD_1M:
+            data = dle.board_1m_multiple(code, days=days)
+
+        else:
+            raise ValueError(f"Invalid stock_type: {stock_type}")
+
+        if data.empty:
+            return data, None
+
+        date_end = data.iloc[-1]['date'].date()
+
+        return data, date_end
 
     except Exception as ex:
-        # todo 引入日志
-        print(f'从东方财富下载{code}异常：{ex};')
+        logging.error(f"Error in download_1m_by_type for {code} ({stock_type}): {ex}")
         return pd.DataFrame(), None
-
-    return data, date_  # date_:  data  end date;
 
 
 class DataDailyRenew:
+
     """
-    近期数据更新
+    每日数据更新
 
     """
 
@@ -81,13 +90,13 @@ class DataDailyRenew:
             dl = pd.concat([dl1, dl2], ignore_index=True).sort_values(by=['EndDate']).reset_index(drop=True)
 
             if dl.empty:
-                print('已是最新数据')
+                logging.info('已是最新数据')
                 break
 
             shapes = dl.shape[0]
+
             for (i, row) in dl.iterrows():
                 print(f'\n下载进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
-
                 id_ = row['id']
                 stock_name = row['name']
                 stock_code = row['code']
@@ -96,22 +105,19 @@ class DataDailyRenew:
                 classification = row['Classification']
 
                 record_ending = row['EndDate']
-                days = current - record_ending
-                days = days.days  # 距当前的天数， 判断下载几天的数据
+                days = (current - record_ending).days  # 距当前的天数， 判断下载几天的数据
 
-                if not days:
-                    print(f'无最新1m数据: {stock_name}, {stock_code};')
+                if days <= 0:
+                    logging.info(f'无最新1m数据: {stock_name}, {stock_code};')
                     continue
 
                 days = min(5, days)
-                if classification == '行业板块':  # 下载行业板块 1m数据
-                    data, ending = board_1m(escode, days)
 
-                else:  # 下载个股 1m数据
-                    data, ending = stock_1m(escode, days)
+                stock_type = StockType.BOARD_1M if classification == '行业板块' else StockType.STOCK_1M  # 判断是行业板块还是个股
+                data, ending = download_1m_by_type(escode, days, stock_type)
 
                 if data.empty:  # 判断下载数据是否为空
-                    print(f'无最新1m数据: {stock_name}, {stock_code};')
+                    logging.warning(f'无最新1m数据: {stock_name}, {stock_code};')
                     continue
 
                 select = pd.to_datetime(record_ending + pd.Timedelta(days=1))
@@ -119,7 +125,7 @@ class DataDailyRenew:
 
                 # 判断是否保存数据 及 更新记录表格
                 if data.empty:
-                    print(f'无最新1m数据: {stock_name}, {stock_code};')
+                    logging.info(f'无最新1m数据: {stock_name}, {stock_code};')
                     continue
 
                 ending = pd.to_datetime(ending)
