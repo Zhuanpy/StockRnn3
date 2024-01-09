@@ -53,7 +53,6 @@ def download_1m_by_type(code: str, days: int, stock_type: str):
 
 
 class DataDailyRenew:
-
     """
     每日数据更新
 
@@ -88,12 +87,11 @@ class DataDailyRenew:
                          (record['EndDate'] < current)]
 
             dl = pd.concat([dl1, dl2], ignore_index=True).sort_values(by=['EndDate']).reset_index(drop=True)
+            shapes = dl.shape[0]
 
             if dl.empty:
                 logging.info('已是最新数据')
                 break
-
-            shapes = dl.shape[0]
 
             for (i, row) in dl.iterrows():
                 print(f'\n下载进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
