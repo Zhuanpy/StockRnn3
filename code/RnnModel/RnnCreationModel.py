@@ -15,6 +15,7 @@ from keras import backend as k
 import pandas as pd
 from code.parsers.RnnParser import *
 from Rnn_utils import rnn_data_path, find_file_in_paths
+from code.RnnDataFile.stock_path import StockDataPath
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -89,10 +90,15 @@ class BuiltModel:
         records[model_name] = loss
         rf.save_json(records, self.months, self.code)
 
-        # 保存
-        _path = rnn_data_path(self.months)
-        model.save_weights(f'{_path}/weight/weight_{model_name}_{self.code}.h5')  # 保存参数
-        model.save(f'{_path}/model/{model_name}_{self.code}.h5')  # 保存模型
+        # 保存权重
+        weight_file_name = 'weight_{model_name}_{self.code}.h5'
+        weight_path = StockDataPath.model_weight_path(self.months, weight_file_name)
+        model.save_weights(weight_path)  # 保存参数
+
+        # 保存模型
+        model_file_name = f'{model_name}_{self.code}.h5'
+        model_path = StockDataPath.model_weight_path(self.months, model_file_name)
+        model.save(model_path)  # 保存模型
 
     def model_one(self, model_name: str):
         self.train_model(model_name)

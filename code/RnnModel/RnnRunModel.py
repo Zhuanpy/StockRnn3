@@ -13,8 +13,8 @@ from code.Normal import ResampleData, Useful, count_times, ReadSaveFile
 from code.Signals.StatisticsMacd import SignalMethod
 from code.parsers.RnnParser import *
 import matplotlib.pyplot as plt
-from root_ import file_root
 from code.TrendDistinguish.TrendDistinguishRunModel import TrendDistinguishModel
+from code.RnnDataFile.stock_path import StockDataPath
 
 plt.rcParams['font.sans-serif'] = ['FangSong']
 pd.set_option('display.max_columns', None)
@@ -25,7 +25,7 @@ class Parsers:
 
     def __init__(self, freq='15m'):
         self.lines, self.line = Useful.dashed_line(50)
-        self.root_path = file_root()
+        # self.root_path = file_root()
         # 股票基础变量
         self.stock_name, self.stock_code, self.stock_id, self.month_parsers = None, None, None, None
 
@@ -98,12 +98,13 @@ class ModelData(Parsers):
     def monitor_read_1m(self):
         data_1m = self.read_1m_by_15m_record()
         data_ = download_1m(self.stock_name, self.stock_code, days=1)
-        path = os.path.join(self.root_path, 'data', 'input', 'monitor', '1m', f'{self.stock_code}.csv')
+
+        monitor_1m_data = StockDataPath.monitor_1m_data_path(self.stock_code)   # 通过文件路径函数找到对应数据
         if not data_.empty:
-            data_.to_csv(path, index=False)
+            data_.to_csv(monitor_1m_data, index=False)
 
         else:
-            data_ = pd.read_csv(path)
+            data_ = pd.read_csv(monitor_1m_data)
 
         data_1m = pd.concat([data_1m, data_], ignore_index=True)
         return data_1m
@@ -215,8 +216,7 @@ class ModelData(Parsers):
         """
         15m 数据计算
         """
-        root_path = file_root()
-        path = os.path.join(root_path, 'data', 'RnnData', self.month_parsers, 'json', f'{self.stock_code}.json')
+        path = StockDataPath.json_data_path(self.month_parsers, self.stock_code)
         self.jsons = ReadSaveFile.read_json_by_path(path)
 
         data_daily = self.daily_data()
@@ -350,7 +350,7 @@ class DlModel(Parsers):
     def predictive_value(self, model_name, x):
         k.clear_session()
         file_name = f'{model_name}_{self.stock_code}.h5'
-        path = os.path.join(self.root_path, 'data', self.month_parsers, 'model', file_name)
+        path = StockDataPath.model_path(self.month_parsers, file_name)
         model = load_model(path)
         val = model.predict(x)
         val = val[0][0]
@@ -376,8 +376,6 @@ class DlModel(Parsers):
 
     def cycle_length(self):
         x = self.x_data(self.X[0])
-        # print(self.x_data)
-        # exit()
         y = self.predictive_value(self.model_name[0], x)
         y = round(self.normal2value(data=y, match=nextCycleLengthMax) * self.model_alpha)
         return y
@@ -508,8 +506,8 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
         self.month_parsers, self.monitor = month_parsers, monitor
         self.stopLoss = stopLoss
 
-        root_path = file_root()
-        path = os.path.join(root_path, 'RnnData', self.month_parsers, self.stock_code)
+        # todo 读取月份文件夹下数据失败时候怎么处理？
+        path = StockDataPath.json_data_path(self.month_parsers, self.stock_code)
         self.jsons = ReadSaveFile.read_json_by_path(path)
 
         # 生成预测数据
