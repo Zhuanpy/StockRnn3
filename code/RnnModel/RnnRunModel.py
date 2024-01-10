@@ -25,7 +25,7 @@ class Parsers:
 
     def __init__(self, freq='15m'):
         self.lines, self.line = Useful.dashed_line(50)
-        self._path = file_root()
+        self.root_path = file_root()
         # 股票基础变量
         self.stock_name, self.stock_code, self.stock_id, self.month_parsers = None, None, None, None
 
@@ -36,7 +36,7 @@ class Parsers:
         self.data_1m, self.data_15m = None, None
         self.records = None
         self.checking_data = None
-        self.time_15m = None
+        self.record_last_15m_time = None
         self.check_date = None
 
         #  趋势模型 模型预测变量
@@ -66,49 +66,65 @@ class ModelData(Parsers):
 
         self.db_rnn_model, self.tb_rnn_record = 'rnn_model', 'RunRecord'
 
-    def read_1m(self):
+    def read_1m_by_15m_record(self):
 
         # 加载RnnModel数据
         self.records = LoadRnnModel.load_run_record()
 
         # 筛选出特定股票代码的记录
+        # todo : 这能是否能改成，输入股票ID 获取某个数值：-获取 record_last_15m_time
+        # self.record_last_15m_time = LoadRnnModel.load_run_record(self.stock_code, 'Time15m')
         self.records = self.records[self.records['code'] == self.stock_code]
-
-        time1m = pd.Timestamp('today') + pd.Timedelta(days=-150)
-        self.time_15m = self.records.iloc[0]['Time15m']
+        self.record_last_15m_time = self.records.iloc[0]['Time15m']
+        data_last_150_days = pd.Timestamp('today') + pd.Timedelta(days=-150)
 
         try:
-            # 如果15分钟级别数据的时间在过去150天内，则向前推10天
-            if self.time_15m > time1m:
-                self.time_15m = self.time_15m + pd.Timedelta(days=-10)
-
-            else:
-                self.time_15m = time1m
+            # 如果记录的15分钟级别数据时间 150天内，则向前推10天
+            select_15m_time = self.record_last_15m_time + pd.Timedelta(
+                days=-10) if self.record_last_15m_time > data_last_150_days else data_last_150_days
 
         except Exception as ex:
-            self.time_15m = time1m
+            select_15m_time = data_last_150_days
             print(f'Select 1m data Date Error: {ex}')
 
-        data_1m = StockData1m.load_1m(self.stock_code, str(time1m.year))
-        data_1m = data_1m[data_1m['date'] > time1m].drop_duplicates(subset=['date']).reset_index(drop=True)
+        # 从StockData1m 加载1分钟级别的股票数据
+        data_1m = StockData1m.load_1m(self.stock_code, str(data_last_150_days.year))
 
-        if self.monitor:
-            data_ = download_1m(self.stock_name, self.stock_code, days=1)
+        # 筛选出所需的 data 1m 数据, 大于筛选时间变量 select_15m_time
+        data_1m = data_1m[data_1m['date'] > select_15m_time].drop_duplicates(subset=['date']).reset_index(drop=True)
 
-            path = f'{self._path}/data/input/monitor/1m/{self.stock_code}.csv'
-            if not data_.empty:
-                data_.to_csv(path, index=False)
+        return data_1m
 
-            else:
-                data_ = pd.read_csv(path)
-
-            data_1m = pd.concat([data_1m, data_], ignore_index=True)
+    def monitor_read_1m(self):
+        data_1m = self.read_1m_by_15m_record()
+        data_ = download_1m(self.stock_name, self.stock_code, days=1)
+        path = os.path.join(self.root_path, 'data', 'input', 'monitor', '1m', f'{self.stock_code}.csv')
+        if not data_.empty:
+            data_.to_csv(path, index=False)
 
         else:
-            date_ = self.check_date + pd.Timedelta(days=1)
-            data_1m = data_1m[data_1m['date'] < date_]
-            data_1m = data_1m.drop_duplicates(subset=['date']).reset_index(drop=True)
+            data_ = pd.read_csv(path)
 
+        data_1m = pd.concat([data_1m, data_], ignore_index=True)
+        return data_1m
+
+    def check_date_read_1m(self):
+        data_1m = self.read_1m_by_15m_record()
+
+        # todo 这里导入数据的逻辑有问题
+        # check_data 查看的日期 和 record 15m 会有冲突； 假设  record 15m 是 2023年12月15号， 但是 check date 是 12月1号 就起冲突；
+        # 解决方法：record_15m 是否可以放入到 Json 数据中
+
+        """
+        参数说明
+        例如：
+        self.check_date =  2024-01-08
+        data_select_date 返回数据：  2024-01-09 00:00:00
+        """
+
+        data_select_date = self.check_date + pd.Timedelta(days=1)
+        data_1m = data_1m[data_1m['date'] < data_select_date]
+        data_1m = data_1m.drop_duplicates(subset=['date']).reset_index(drop=True)
         return data_1m
 
     def column2normal(self, column: str, match: str):
@@ -185,11 +201,13 @@ class ModelData(Parsers):
 
     def daily_data(self):
         data = ResampleData.resample_1m_data(data=self.data_1m, freq='day')
+
         data['date'] = pd.to_datetime(data['date']) + pd.Timedelta(minutes=585)
-        data.loc[:, DailyVolEma] = data['volume'].rolling(90, min_periods=1).mean()
+        data[DailyVolEma] = data['volume'].rolling(90, min_periods=1).mean()
+
         max_ = self.jsons[DailyVolEma]
-        data.loc[:, DailyVolEmaParser] = max_ / data[DailyVolEma]
-        data = data[data['date'] > (self.time_15m + pd.Timedelta(days=-1))]
+        data[DailyVolEmaParser] = max_ / data[DailyVolEma]
+        data = data[data['date'] > (self.record_last_15m_time + pd.Timedelta(days=-1))]
         data = data[['date', DailyVolEmaParser]].set_index('date', drop=True)
         return data
 
@@ -197,10 +215,14 @@ class ModelData(Parsers):
         """
         15m 数据计算
         """
+        root_path = file_root()
+        path = os.path.join(root_path, 'data', 'RnnData', self.month_parsers, 'json', f'{self.stock_code}.json')
+        self.jsons = ReadSaveFile.read_json_by_path(path)
 
         data_daily = self.daily_data()
 
-        self.data_15m = self.data_1m[self.data_1m['date'] > pd.to_datetime(self.time_15m)].reset_index(drop=True)
+        self.data_15m = self.data_1m[self.data_1m['date'] > pd.to_datetime(self.record_last_15m_time)].reset_index(
+            drop=True)
 
         self.data_15m = ResampleData.resample_1m_data(data=self.data_15m, freq='15m')
         # print(self.data_15m)
@@ -218,7 +240,7 @@ class ModelData(Parsers):
         self.data_15m = self.data_15m.join([data_daily]).reset_index()
 
         fills = [DailyVolEmaParser]
-        self.data_15m[fills] = self.data_15m[fills].fillna(method='ffill')
+        self.data_15m[fills] = self.data_15m[fills].ffill()
 
         lastST = list(self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6)[SignalTimes])
         self.data_15m = self.data_15m[self.data_15m[SignalTimes].isin(lastST)]
@@ -263,7 +285,7 @@ class ModelData(Parsers):
             self.data_15m.loc[condition, key] = self.data_15m.loc[condition, value].shift(-1)
 
         fills = list(pre_dic.keys()) + list(next_dic.keys())
-        self.data_15m[fills] = self.data_15m[fills].fillna(method='ffill')
+        self.data_15m[fills] = self.data_15m[fills].ffill()
         self.data_15m[Signal] = self.data_15m[Signal].astype(float)
 
         dic = {'volume': 'volume',
@@ -293,10 +315,13 @@ class ModelData(Parsers):
         self.data_15m['ReTrends'] = self.data_15m['close'] - self.data_15m['EmaMid']
 
         self.data_15m = self.data_15m.replace([np.inf, -np.inf], np.nan)
+        # print(self.data_15m)
+        return self.data_15m
 
     def calculate_check_data(self):
 
-        self.data_1m = self.read_1m()  # 计算获取 1m 数据；
+        # 获取 1m 数据
+        self.data_1m = self.monitor_read_1m() if self.monitor else self.check_date_read_1m()
 
         self.first_15m()
 
@@ -325,7 +350,7 @@ class DlModel(Parsers):
     def predictive_value(self, model_name, x):
         k.clear_session()
         file_name = f'{model_name}_{self.stock_code}.h5'
-        path = os.path.join(self._path, 'data', self.month_parsers, 'model', file_name)
+        path = os.path.join(self.root_path, 'data', self.month_parsers, 'model', file_name)
         model = load_model(path)
         val = model.predict(x)
         val = val[0][0]
@@ -402,7 +427,6 @@ class UpdateData(Parsers):
         self._limitTradeTiming = None
 
     def update_StockPool(self):
-
         sql = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_pool} set 
         close = '{self.close}', 
         ExpPrice = '{self.ExpPrice}',
@@ -454,7 +478,6 @@ class TradingAction(Parsers):
         Parsers.__init__(self)
 
     def buy_action(self):
-
         # 条件1：趋势反转买入
         trend_reversal_condition = (self.signal == -1) and (self.reTrend == 1)
 
@@ -473,8 +496,7 @@ class TradingAction(Parsers):
 
 class PredictionCommon(ModelData, DlModel, UpdateData):
 
-    def __init__(self, stock: str, month_parsers: str, monitor: bool, check_date, alpha=1, stopLoss=None,
-                 position=None):
+    def __init__(self, stock: str, month_parsers: str, check_date, alpha=1, monitor=True, stopLoss=None, position=None):
 
         ModelData.__init__(self)
         DlModel.__init__(self)
@@ -485,7 +507,10 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
         self.position = position
         self.month_parsers, self.monitor = month_parsers, monitor
         self.stopLoss = stopLoss
-        self.jsons = ReadSaveFile.read_json(self.month_parsers, self.stock_code)
+
+        root_path = file_root()
+        path = os.path.join(root_path, 'RnnData', self.month_parsers, self.stock_code)
+        self.jsons = ReadSaveFile.read_json_by_path(path)
 
         # 生成预测数据
         if monitor:
@@ -853,39 +878,38 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
         # 生成数据 data_1m, data_15m, checking_data, checking
         self.checking_data = self.calculate_check_data()
-        # print(self.checking_data)
-        # exit()
-        if self.checking_data.shape[0]:  # 判断check date data 是否为空
 
-            for s_ in self.checking_data.drop_duplicates(subset=[SignalTimes])[SignalTimes]:  # 判断 SignalTimes 个数
-                self.checking = self.checking_data[self.checking_data[SignalTimes] == s_]
+        if self.checking_data.empty:  # 判断check date data 是否为空
+            return False
 
-                self.get_bar_data()  # 获取当前Bar 各个数据值
+        for s_ in self.checking_data.drop_duplicates(subset=[SignalTimes])[SignalTimes]:  # 判断 SignalTimes 个数
+            self.checking = self.checking_data[self.checking_data[SignalTimes] == s_]
 
-                # 周期点预测，需先判断是否运行模型
-                self.predict_cycle_values()
-                self.predict_bar_values()
+            self.get_bar_data()  # 获取当前Bar 各个数据值
 
-                self.trade_point_score()  # 趋势得分
+            # 周期点预测，需先判断是否运行模型
+            self.predict_cycle_values()
+            self.predict_bar_values()
 
-                # 更新数据
-                self.update_RecordRun()
-                self.update_Data15m()
-                self.update_StockPool()  # 更新股票池
+            self.trade_point_score()  # 趋势得分
 
-                if self.trade_boll:
-                    self.report_trade()
+            # 更新数据
+            self.update_RecordRun()
+            self.update_Data15m()
+            self.update_StockPool()  # 更新股票池
 
-                if self.position:
-                    self.report_position()
+            if self.trade_boll:
+                self.report_trade()
 
-                self.report_run()  # 显示运行结果
+            if self.position:
+                self.report_position()
+
+            self.report_run()  # 显示运行结果
 
 
 if __name__ == '__main__':
     month_ = '2022-02'
-    _date = '2022-10-17'
+    _date = '2024-01-08'
     stock_ = '002475'
-    monitor = False
-    rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=monitor, check_date=_date)
+    rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=False, check_date=_date)
     rm.single_stock()

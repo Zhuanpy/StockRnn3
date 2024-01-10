@@ -14,7 +14,8 @@ from root_ import file_root
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
-font = FontProperties(fname=r'C:\Windows\Fonts\SimSun.ttf', size=14)
+
+# font = FontProperties(fname=r'C:\Windows\Fonts\SimSun.ttf', size=14)
 
 
 def open_data_file():
@@ -77,14 +78,13 @@ class ScoreStockPool(TrendDistinguishModel):
 
             # 获取趋势 df数据  和 得分
             data, score = self.distinguish_1m(stock_code=code, freq='120m', returnFreq=True, date_=None)
-            # print(data)
-            # print(score)
-            # exit()
+
             data['close'] = mfl.data2normalization(data['close'])
 
             data = Bollinger(data=data)
-            data.loc[:, 'BollTrend'] = data[BollMid] - data[BollMid].shift(1)
+            data['BollTrend'] = data[BollMid] - data[BollMid].shift(1)
 
+            data['BollScore'] = 0.5
             # boll trends
             data.loc[data['BollTrend'] > 0, 'BollScore'] = 0.9
             data.loc[data['BollTrend'] <= 0, 'BollScore'] = 0.1
@@ -94,12 +94,8 @@ class ScoreStockPool(TrendDistinguishModel):
             # 得分记录
             boll_max = data[BollUp].max()
             boll_min = data[BollDn].min()
-            # print(data)
-            # exit()
             data.loc[data['BollScore'] == 0.9, 'pltbs'] = boll_max
             data.loc[data['BollScore'] == 0.1, 'pltbs'] = boll_min
-            # print(data)
-            # exit()
 
             s = score[1]
 
@@ -668,6 +664,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
 
 
 if __name__ == '__main__':
+    # todo # UserWarning: Glyph 21271 (\N{CJK UNIFIED IDEOGRAPH-5317}) missing from current font.
     # real = UpdateFakeStock()
     # real.update_history_trade()
     sp = ScoreStockPool()

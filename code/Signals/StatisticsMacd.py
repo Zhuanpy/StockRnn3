@@ -30,7 +30,8 @@ class CountMACD:
 
         con03 = ~data[Signal].isnull()
         data.loc[con03, SignalTimes] = data.loc[con03, 'date'].dt.strftime("%Y%m%d%H%M")
-        data[SignalTimes] = data[SignalTimes].fillna(method='ffill')
+
+        data[SignalTimes] = data[SignalTimes].ffill()
 
         return data
 
@@ -93,7 +94,7 @@ class CountMACD:
         data.loc[con1, SignalStartIndex] = data[con1]['date']
 
         fills = [Signal, SignalStartIndex]
-        data[fills] = data[fills].fillna(method='ffill')
+        data[fills] = data[fills].ffill()
         return data
 
 
@@ -166,7 +167,7 @@ class StatisticsMACD:
         data.loc[condition, StartPriceIndex] = data[condition][EndPriceIndex].shift(1)
 
         fills = [EndPrice, EndPriceIndex, StartPrice, StartPriceIndex, 'EndDaily1mVolMax5']
-        data[fills] = data[fills].fillna(method='ffill')
+        data[fills] = data[fills].ffill()
         data = data.reset_index()
         return data
 
@@ -248,7 +249,7 @@ class StatisticsMACD:
         data.loc[con, Daily1mVolMax5] = data.loc[con, 'date'].apply(cls.find_Daily1mMax, args=(5, data1m,))
         data.loc[con, Daily1mVolMax15] = data.loc[con, 'date'].apply(cls.find_Daily1mMax, args=(15, data1m,))
 
-        data[fills] = data[fills].fillna(method='ffill')
+        data[fills] = data[fills].ffill()
 
         return data
 
