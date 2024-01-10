@@ -48,6 +48,7 @@ def tb_txd_record():
 class StockDailyData:
 
     def __init__(self):
+
         self.file_list = ['E:/SOFT/Finace_software/vipdoc/sz/lday/',
                           'E:/SOFT/Finace_software/vipdoc/sh/lday/']
 
@@ -82,7 +83,7 @@ class StockDailyData:
         print(df)
 
 
-class TongxindaDailyData:
+class TongXinDaDailyData:
 
     def __init__(self):
         self.data = None
@@ -179,7 +180,7 @@ class TongxindaDailyData:
         p5.start()
 
 
-class TongxindaMinuteData:
+class TongXinDaMinuteData:
 
     def __init__(self):
         self.data = None
@@ -443,7 +444,7 @@ class CombineMinuteData:
 
 
 if __name__ == '__main__':
-    dd = TongxindaMinuteData()
+    dd = TongXinDaMinuteData()
     dd.multiple_process_minute_data()
 
     # dd = TongxindaDailyData()

@@ -51,23 +51,7 @@ def rnn_data_path(month: str):
     :param month: 月份
     :return: 数据路径
     """
-    path = os.path.join('data', 'RnnData', month)
-
-    return path
-
-
-def rnn_data_files() -> list:
-    """
-    获取RNN 文件夹名， 大到小并且排序；
-    能用到的地方， 训练模型读取历史数据时，例如权重数据，例如训练数据；
-    """
-    path = file_root()
-    path = os.path.join(path, 'data', 'RnnData')
-    folder_names = [folder for folder in os.listdir(path) if os.path.isdir(os.path.join(path, folder))]
-    folder_names.remove('CommonFile')
-    folder_names.sort()
-    folder_names.reverse()
-    return folder_names
+    return os.path.join(file_root(), 'data', 'RnnData', month)
 
 
 def pre_month_data_list(month: str, classification: str) -> list:
@@ -76,22 +60,32 @@ def pre_month_data_list(month: str, classification: str) -> list:
     :param month: 月份
     :classification: 类型 ， 如 weigh , train_data ;
     :return: 上个月份列表
+
+    获取RNN 文件夹名， 大到小并且排序；
+    能用到的地方， 训练模型读取历史数据时，例如权重数据，例如训练数据；
+
     """
-    my_list = rnn_data_files()
-    p = file_root()
 
-    try:
-        index_to_remove = my_list.index(month)
-        my_list = my_list[index_to_remove + 1:]
+    root_path = os.path.join(file_root(), 'data', 'RnnData')
 
-        # 再添加路径
-        for m in my_list:
-            my_list[my_list.index(m)] = os.path.join(p, rnn_data_path(m), classification)
+    folder_names = [folder for folder in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, folder))]
 
-    except ValueError:
-        pass  # 月份不存在于列表中，不进行任何操作
+    folder_names.remove('CommonFile')
+    folder_names.sort()
+    folder_names.reverse()
 
-    return my_list
+    index_to_remove = folder_names.index(month)
+    folder_names = folder_names[index_to_remove + 1:]
+
+    # 再添加路径
+    for m in folder_names:
+        try:
+            folder_names[folder_names.index(m)] = os.path.join(root_path, m, classification)
+
+        except ValueError:
+            pass  # 月份不存在于列表中，不进行任何操作
+
+    return folder_names
 
 
 def find_file_in_paths(month: str, classification: str, file_name: str):
