@@ -1,5 +1,5 @@
 import pymysql
-from code.password.parser import sql_password
+from code.RnnDataFile.password import sql_password
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
