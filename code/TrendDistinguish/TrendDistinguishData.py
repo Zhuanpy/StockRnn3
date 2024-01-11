@@ -48,11 +48,14 @@ class CountTrendData(TrendDistinguishData):
         self.data = self.calculates(_date)
 
     def save_array_data(self, array_data, file_path):
+
         array_data.shape = (1, 150, 200, 4)
+
         try:
             existing_data = np.load(file_path, allow_pickle=True)
             combined_data = np.append(existing_data, array_data, axis=0)
             np.save(file_path, combined_data)
+
         except FileNotFoundError:
             pass
 

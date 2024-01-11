@@ -40,3 +40,18 @@ class AnalysisDataPath:
     def macd_train_path(cls, signal_file: str, file_name: str):
         r = os.path.join(data_path, 'output', 'MacdTrend', 'train', signal_file, file_name)
         return r
+
+    @classmethod
+    def macd_predict_path(cls, file_name: str):
+        r = os.path.join(data_path, 'output', 'MacdTrend', 'predict', file_name)
+        return r
+
+    @classmethod
+    def macd_predict_trends_path(cls, file_name: str):
+        r = os.path.join(data_path, 'output', 'MacdTrend', 'predict', 'trends', file_name)
+        return r
+
+    @classmethod
+    def macd_model_path(cls):
+        r = os.path.join(data_path, 'output', 'MacdTrend', 'model.h5')
+        return r
