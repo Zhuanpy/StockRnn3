@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-import os
 from keras.models import load_model
 from keras import backend as k
 from code.downloads.DlDataCombine import download_1m
@@ -25,7 +24,7 @@ class Parsers:
 
     def __init__(self, freq='15m'):
         self.lines, self.line = Useful.dashed_line(50)
-        # self.root_path = file_root()
+
         # 股票基础变量
         self.stock_name, self.stock_code, self.stock_id, self.month_parsers = None, None, None, None
 
@@ -225,8 +224,7 @@ class ModelData(Parsers):
             drop=True)
 
         self.data_15m = ResampleData.resample_1m_data(data=self.data_15m, freq='15m')
-        # print(self.data_15m)
-        # exit()
+
         self.data_15m = SignalMethod.signal_by_MACD_3ema(data=self.data_15m, data1m=self.data_1m)
 
         t15m = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].date()
@@ -907,7 +905,7 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
 if __name__ == '__main__':
     month_ = '2022-02'
-    _date = '2024-01-08'
+    _date = '2024-01-10'
     stock_ = '002475'
     rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=False, check_date=_date)
     rm.single_stock()

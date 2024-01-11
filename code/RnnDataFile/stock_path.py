@@ -15,9 +15,28 @@ class StockDataPath:
 
     @classmethod
     def model_path(cls, month_parser: str, file_name: str):
-        r = os.path.join(data_path, 'RnnData', month_parser, 'json', file_name)
+        r = os.path.join(data_path, 'RnnData', month_parser, 'model', file_name)
         return r
 
     @classmethod
     def model_weight_path(cls, month_parser: str, file_name: str):
         r = os.path.join(data_path, 'RnnData', month_parser, 'weight', file_name)
+        return r
+
+    @classmethod
+    def columns_name_path(cls):
+        r = os.path.join(data_path, 'columns')
+        return r
+
+
+class AnalysisDataPath:
+
+    @classmethod
+    def analysis_industry_trend_jpg_path(cls, file_name):
+        r = os.path.join(data_path, 'output', 'analysis', file_name)
+        return r
+
+    @classmethod
+    def macd_train_path(cls, signal_file: str, file_name: str):
+        r = os.path.join(data_path, 'output', 'MacdTrend', 'train', signal_file, file_name)
+        return r

@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup as soup
 import pandas as pd
 from download_utils import page_source, WebDriver
 from download_utils import UrlCode
-from code.password.parser import my_headers, my_url
+from code.RnnDataFile.parser import my_headers, my_url
 import logging
 
 pd.set_option('display.max_columns', None)

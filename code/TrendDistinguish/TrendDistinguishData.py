@@ -5,8 +5,7 @@ from code.MySql.sql_utils import Stocks
 from code.Signals.StatisticsMacd import SignalMethod
 from code.MySql.LoadMysql import StockData1m, StockPoolData
 from Distinguish_utils import array_data
-from root_ import file_root
-
+from code.RnnDataFile.stock_path import AnalysisDataPath
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -40,7 +39,6 @@ class TrendDistinguishData:
 
 
 class CountTrendData(TrendDistinguishData):
-
     """
     count trend data
     """
@@ -49,23 +47,22 @@ class CountTrendData(TrendDistinguishData):
         TrendDistinguishData.__init__(self, stock)
         self.data = self.calculates(_date)
 
-    def save_data(self, data, file):
-        data.shape = (1, 150, 200, 4)
-
+    def save_array_data(self, array_data, file_path):
+        array_data.shape = (1, 150, 200, 4)
         try:
-            _data = np.load(file, allow_pickle=True)
-            data = np.append(_data, data, axis=0)
-
+            existing_data = np.load(file_path, allow_pickle=True)
+            combined_data = np.append(existing_data, array_data, axis=0)
+            np.save(file_path, combined_data)
         except FileNotFoundError:
             pass
 
-        np.save(file, data)
-
     def count_trend(self):
 
+        # 从self.data中截取一部分数据，去除缺失的'SignalChoice'
         df = self.data[200:].dropna(subset=['SignalChoice'])
 
-        df.loc[:, 'maxChange'] = (df['EndPrice'] - df['StartPrice']) / df['StartPrice']
+        # 计算价格变化的百分比，存储到'maxChange'列
+        df['maxChange'] = (df['EndPrice'] - df['StartPrice']) / df['StartPrice']
 
         df1 = df[df['maxChange'] > 0.1]
         df2 = df[df['maxChange'] < -0.1]
@@ -79,6 +76,7 @@ class CountTrendData(TrendDistinguishData):
             if len(last2SignalTimes) <= 2:
                 continue
 
+            # 根据SignalTimes筛选数据
             data_SignalTimes = self.data[self.data['SignalTimes'].isin(last2SignalTimes)]
 
             signal_times = df.loc[y, 'SignalTimes']
@@ -88,42 +86,39 @@ class CountTrendData(TrendDistinguishData):
             end_time = df.loc[y, 'EndPriceIndex']
 
             print(f'{self.stock_code}: {signal_times}')
+
+            # 计算起始和结束的索引
             _index = self.data[self.data['date'] <= start_time].index[-1] + 5  # start index
             index_ = self.data[self.data['date'] <= end_time].index[-1]  # end index
 
+            # 获取signal_times对应的数据
             signal_data = self.data[self.data['SignalTimes'] == signal_times]
             shapes = signal_data.shape[0] // 6
             shapes = min(shapes, 5)  # one signal max 5 pictures.
 
-            # plot_ = PlotTrend()
+            # 根据Signal的值选择不同的文件夹和文件名
+            folder_prefix = '_up' if signal_ == 1 else '_down'
+            folder_suffix = 'up_' if signal_ == 1 else '_down'
+
+            filename_jpg = f'{self.stock_code}_{signal_times}.jpg'
+            filename_npy = f'{self.stock_code}.npy'
+
             for s in range(shapes):
-                path_ = file_root()
-                path_ = f'{path_}/data/output/MacdTrend/train/'
+                _figName = AnalysisDataPath.macd_train_path(folder_prefix, filename_jpg)
+                _file = AnalysisDataPath.macd_train_path(folder_prefix, filename_npy)
 
-                if signal_ == 1:
-                    _figName = f'{path_}_up/{self.stock_code}_{signal_times}.jpg'
-                    figName_ = f'{path_}up_/{self.stock_code}_{signal_times}.jpg'
-
-                    _file = f'{path_}_up/{self.stock_code}.npy'
-                    file_ = f'{path_}up_/{self.stock_code}.npy'
-
-                else:
-                    _figName = f'{path_}_down/{self.stock_code}_{signal_times}.jpg'
-                    figName_ = f'{path_}down_/{self.stock_code}_{signal_times}.jpg'
-
-                    _file = f'{path_}_down/{self.stock_code}.npy'
-                    file_ = f'{path_}down_/{self.stock_code}.npy'
+                figName_ = AnalysisDataPath.macd_train_path(folder_suffix, filename_jpg)
+                file_ = AnalysisDataPath.macd_train_path(folder_suffix, filename_npy)
 
                 _num = _index + s
                 _data = data_SignalTimes.loc[:_num].tail(100)  # _up = # _up : 上涨前期
                 _array = array_data(data=_data, name_=_figName)
+                self.save_array_data(_array, _file)
 
                 num_ = index_ - s
                 data_ = data_SignalTimes.loc[:num_].tail(100)
                 array_ = array_data(data=data_, name_=figName_)
-
-                self.save_data(_array, _file)
-                self.save_data(array_, file_)
+                self.save_array_data(array_, file_)
 
 
 if __name__ == '__main__':

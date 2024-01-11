@@ -4,10 +4,10 @@ import smtplib
 import time
 from email.message import Message
 import pandas as pd
-from root_ import file_root
 from scipy import stats
 import numpy as np
 import json
+from code.RnnDataFile.stock_path import StockDataPath
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -172,8 +172,7 @@ class ReadSaveFile:
 
     @classmethod
     def read_json(cls, months: str, code: str):
-        _path = file_root()
-        path = f'{_path}/data/{months}/json/{code}.json'
+        path = StockDataPath.json_data_path(months, code)
         try:
             with open(path, 'r') as lf:
                 j = json.load(lf)
@@ -197,8 +196,7 @@ class ReadSaveFile:
 
     @classmethod
     def save_json(cls, dic: dict, months: str, code: str):
-        _path = file_root()
-        path = f'{_path}/data/{months}/json/{code}.json'
+        path = StockDataPath.json_data_path(months, code)
         with open(path, 'w') as f:
             json.dump(dic, f)
 
@@ -223,21 +221,12 @@ class ResampleData:
 
     @classmethod
     def resample_fun(cls, data, parameter):
-        # print(data)
         data['index_date'] = data['date']
 
         data = data.set_index('index_date')
 
         rsp = data.resample(parameter, closed='right', label='right').last()
-        # print(rsp)
-        # rsp.loc[:, 'open'] = data['open'].resample(parameter, closed='right', label='right').first()
-        # rsp.loc[:, 'high'] = data['high'].resample(parameter, closed='right', label='right').max()
-        # rsp.loc[:, 'low'] = data['low'].resample(parameter, closed='right', label='right').min()
-        # rsp.loc[:, 'volume'] = data['volume'].resample(parameter, closed='right', label='right').sum()
-        # rsp.loc[:, 'money'] = data['money'].resample(parameter, closed='right', label='right').sum()
-
         rsp['open'] = data['open'].resample(parameter, closed='right', label='right').first()
-        # print(rsp)
         rsp['high'] = data['high'].resample(parameter, closed='right', label='right').max()
         rsp['low'] = data['low'].resample(parameter, closed='right', label='right').min()
         rsp['volume'] = data['volume'].resample(parameter, closed='right', label='right').sum()
@@ -324,6 +313,7 @@ class Useful:
 
     @classmethod
     def stock_columns(cls):
+
         basic = {1: 'date', 2: 'open', 3: 'close', 4: 'high', 5: 'low', 6: 'volume', 7: 'money'}
 
         macd_columns = {1: 'EmaShort', 2: 'EmaMid', 3: 'EmaLong', 4: 'DIF', 5: 'DIFSm', 6: 'DIFMl', 7: 'DEA', 8: 'MACD'}
@@ -350,7 +340,8 @@ class Useful:
                    'Signal120m': signal_120m,
                    'SignalDaily': signal_daily}
 
-        with open('pp/StockColumns.json', 'w') as f:
+        columns_path = StockDataPath.columns_name_path()
+        with open(f'{columns_path}/StockColumns.json', 'w') as f:
             json.dump(par_dic, f)
 
         print(par_dic)

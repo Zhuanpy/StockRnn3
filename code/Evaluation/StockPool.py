@@ -6,7 +6,6 @@ from code.Normal import StockCode
 from code.MySql.sql_utils import Stocks
 from code.parsers.BollingerParser import *
 from matplotlib import pyplot as plt
-from matplotlib.font_manager import FontProperties
 from code.RnnModel.RnnRunModel import PredictionCommon
 from code.TrendDistinguish.TrendDistinguishRunModel import TrendDistinguishModel
 from root_ import file_root
@@ -85,17 +84,22 @@ class ScoreStockPool(TrendDistinguishModel):
             data['BollTrend'] = data[BollMid] - data[BollMid].shift(1)
 
             data['BollScore'] = 0.5
+            data['pltbs'] = 0
+
             # boll trends
             data.loc[data['BollTrend'] > 0, 'BollScore'] = 0.9
             data.loc[data['BollTrend'] <= 0, 'BollScore'] = 0.1
 
-            data = data.tail(60)
-
             # 得分记录
             boll_max = data[BollUp].max()
             boll_min = data[BollDn].min()
-            data.loc[data['BollScore'] == 0.9, 'pltbs'] = boll_max
-            data.loc[data['BollScore'] == 0.1, 'pltbs'] = boll_min
+            # print(boll_max)
+            # print(boll_min)
+            # exit()
+            data.loc[data['BollScore'] == 0.9, 'pltbs'] = float(boll_max)
+            data.loc[data['BollScore'] == 0.1, 'pltbs'] = float(boll_min)
+
+            data = data.tail(60)
 
             s = score[1]
 
@@ -240,7 +244,10 @@ class ScoreStockPool(TrendDistinguishModel):
                 self.plotF(ax[0])
 
             # 保存图片
-            plt.savefig(f'{self.root}/data/output/analysis/{self.codeB}_{self.nameB}_Analysis.jpg')
+            from code.RnnDataFile.stock_path import AnalysisDataPath
+            file_name = f'{self.codeB}_{self.nameB}_Analysis.jpg'
+            path = AnalysisDataPath.analysis_industry_trend_jpg_path(file_name)
+            plt.savefig(path)
             plt.close()
 
             print(f'{self.nameB}完成; 剩余{poolB.shape[0] - index - 1}个；')
