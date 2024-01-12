@@ -179,7 +179,7 @@ class DownloadData:
 
         if not source:
             # todo 保存下这个日志
-            # error downloading {code} data from 东方财富: {ex}'
+            #  error downloading {code} data from 东方财富: {ex}'
             logging.warning(f"Failed to retrieve data for {code}. Source is empty.")
             return pd.DataFrame()
 

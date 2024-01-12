@@ -1,7 +1,6 @@
 import numpy as np
 from keras.models import load_model
 from keras import backend as k
-
 from Distinguish_utils import array_data, calculate_distinguish_data
 import imageio
 from code.RnnDataFile.stock_path import AnalysisDataPath
@@ -22,23 +21,28 @@ class TrendDistinguishModel:
         """
         模型预估，return value & label ;
         """
-        file_name = f'{stock_code}.jpg'
-        load_path = AnalysisDataPath.macd_predict_path(file_name)  # os.path.join(self.trend_path, 'predict', )
+        # load_path = os.path.join(self.trend_path, 'predict', f'{stock_code}.jpg')
+
+        load_file_jpg = f'{stock_code}.jpg'
+        load_path = AnalysisDataPath.macd_predict_path(load_file_jpg)
         img = imageio.imread(load_path)
         img.shape = (1, img.shape[0], img.shape[1], img.shape[2])
 
         k.clear_session()
-        model_path = AnalysisDataPath.macd_model_path()
+        load_file_h5 = 'model.h5'
+
+        model_path = AnalysisDataPath.macd_model_path(load_file_h5)
         model = load_model(model_path)
 
         value = model.predict(img)
+
         value_ = int(np.argmax(value[0]))
+        label = self.values[value_]
 
         img = img.reshape(img.shape[1], img.shape[2], img.shape[3])
 
-        label = self.values[value_]
-        save_file_name = f'{label}_{stock_code}.jpg'
-        save_path = AnalysisDataPath.macd_predict_trends_path(save_file_name)
+        save_file_jpg = f'{label}_{stock_code}.jpg'
+        save_path = AnalysisDataPath.macd_predict_trends_path(save_file_jpg)
         imageio.imsave(save_path, img)
 
         result = (label, value_)
@@ -54,7 +58,7 @@ class TrendDistinguishModel:
 
         file_name = f'{stock_code}.jpg'
         file_path = AnalysisDataPath.macd_predict_path(file_name)
-        array_data(data=data, name_=file_path)
+        array_data(data=data, name_=file_path)  # , showTicks=True)
 
         label_, value_ = self.predictive_value(stock_code)
 
@@ -67,13 +71,15 @@ class TrendDistinguishModel:
         return result
 
     def distinguish_freq(self, stock_code, data):
-        data = data.tail(100).reset_index(drop=True)
 
         file_name = f'{stock_code}.jpg'
         file_path = AnalysisDataPath.macd_predict_path(file_name)
-        array_data(data=data, name_=file_path)
+
+        data_ = data.tail(100).reset_index(drop=True)
+        array_data(data=data_, name_=file_path)
         label_, value_ = self.predictive_value(stock_code)
         result = (label_, value_)
+
         return result
 
 

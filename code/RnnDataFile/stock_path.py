@@ -52,6 +52,6 @@ class AnalysisDataPath:
         return r
 
     @classmethod
-    def macd_model_path(cls):
-        r = os.path.join(data_path, 'output', 'MacdTrend', 'model.h5')
+    def macd_model_path(cls, file_h5: str):
+        r = os.path.join(data_path, 'output', 'MacdTrend', file_h5)
         return r
