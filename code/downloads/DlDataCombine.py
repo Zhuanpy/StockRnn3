@@ -2,9 +2,7 @@
 from DlJuQuan import DownloadData as dlj
 from DlEastMoney import DownloadData as dle
 from code.MySql.LoadMysql import LoadFundsAwkward, LoadBasicInform, StockData1m, LoadNortFunds
-
 import pandas as pd
-import pandas
 import time
 
 pd.set_option('display.max_columns', None)
@@ -112,6 +110,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                     print(f'下载 {stock_name}, {stock_code} 1m数据异常;\n{ex}')
 
                     if str(ex) == 'Cannot convert non-finite values (NA or inf) to integer':  # 数据下载错误时
+
                         sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} set 
                         StartDate = '1990-01-01', 
                         EndDate = '2050-01-01', 

@@ -54,7 +54,7 @@ class TrendDistinguishModel:
 
         file_name = f'{stock_code}.jpg'
         file_path = AnalysisDataPath.macd_predict_path(file_name)
-        array_data(data=data, name_=file_path)  # , showTicks=True)
+        array_data(data=data, name_=file_path)
 
         label_, value_ = self.predictive_value(stock_code)
 
