@@ -77,8 +77,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                     continue
 
                 try:
-                    data1m = dlj.download_history_data(code, frequency='1m', fq_value='不复权',
-                                                       start_date=str(start_), end_date=str(end_))
+                    data1m = dlj.download_history_data(code, frequency='1m', fq_value='不复权', start_date=str(start_), end_date=str(end_))
 
                     if not data1m.shape[0]:
                         continue
@@ -89,8 +88,7 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                         _data = StockData1m.load_1m(code, _year=year_)
                         data1m = pd.concat([data1m, _data], ignore_index=True)
 
-                        data1m = data1m.drop_duplicates(subset=['date']).sort_values(by=['date']).reset_index(
-                            drop=True)
+                        data1m = data1m.drop_duplicates(subset=['date']).sort_values(by=['date']).reset_index(drop=True)
 
                         StockData1m.replace_1m(code_=code, year_=str(year_), data=data1m)
 
