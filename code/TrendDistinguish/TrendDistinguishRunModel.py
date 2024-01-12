@@ -13,6 +13,7 @@ class TrendDistinguishModel:
     """
 
     def __init__(self):
+
         self.values = {0: '_down', 1: 'down_', 2: '_up', 3: 'up_'}
         self.labels = {'_down': 0, 'down_': 1, '_up': 2, 'up_': 3}
 
