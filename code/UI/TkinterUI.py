@@ -275,7 +275,7 @@ class Application(MenuBar):
 
         # line 3
         Button(fr1, text='股票监测', command=monitor_fun, width=w2, height=h1).place(x=10, y=y3)
-        Button(fr1, text='更新1m', command=ddr.download_1mData, width=w2, height=h1).place(x=110, y=y3)
+        Button(fr1, text='更新1m', command=ddr.download_1m_data, width=w2, height=h1).place(x=110, y=y3)
         Button(fr1, text='更新北向资金', command=ddr.renew_NorthFunds, width=w2, height=h1).place(x=210, y=y3)
         Button(fr1, text='盘后股票预估', command=check_stock_fun, width=w2, height=h1).place(x=310, y=y3)
         Button(fr1, text='盘后板块趋势', command=board_trend_fun, width=w2, height=h1).place(x=410, y=y3)

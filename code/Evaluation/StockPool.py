@@ -54,6 +54,10 @@ def ScoreCycleAmplitude():
         print(f'Score Cycle Amplitude Error list: {errors}')
 
 
+def open_data_file():
+    pass
+
+
 class ScoreStockPool(TrendDistinguishModel):
 
     def __init__(self):
