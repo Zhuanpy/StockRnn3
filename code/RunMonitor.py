@@ -65,7 +65,8 @@ def monitor(months='2022-02'):
             bd_count += 1
 
         if now >= review and pl_count == 0:
-            data = PoolCount.count_trend()  # 当天趋势统计
+            my_count = PoolCount()
+            data = my_count.count_trend()  # 当天趋势统计
             pl_count += 1
             print(f'Trend count: {data}')
 

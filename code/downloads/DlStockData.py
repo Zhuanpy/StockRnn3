@@ -1,8 +1,8 @@
 import time
-from DlEastMoney import DownloadData as dle
+from DlEastMoney import DownloadData as My_dle
 import pandas as pd
-from code.MySql.LoadMysql import StockData1m, LoadBasicInform, LoadNortFunds
-from code.RnnDataFile.save_download import save_1m_to_csv, save_1m_to_daily
+from code.MySql.LoadMysql import LoadBasicInform, LoadNortFunds, RecordStock
+from code.RnnDataFile.save_download import save_1m_to_csv, save_1m_to_daily, save_1m_to_mysql
 import datetime
 import logging
 
@@ -34,10 +34,10 @@ def download_1m_by_type(code: str, days: int, stock_type: str):
 
     try:
         if stock_type == StockType.STOCK_1M:
-            data = dle.stock_1m_days(code, days=days)
+            data = My_dle.stock_1m_days(code, days=days)
 
         elif stock_type == StockType.BOARD_1M:
-            data = dle.board_1m_multiple(code, days=days)
+            data = My_dle.board_1m_multiple(code, days=days)
 
         else:
             raise ValueError(f"Invalid stock_type: {stock_type}")
@@ -61,7 +61,7 @@ class DataDailyRenew:
     """
 
     @classmethod
-    def download_1mData(cls):
+    def download_1m_data(cls):
         """
         download 1m data ;
         every day running method;
@@ -72,36 +72,23 @@ class DataDailyRenew:
 
         while True:
 
-            record = LoadBasicInform.load_minute()  # alc.pd_read(database=db_basic, table=tb_basic)
+            record = RecordStock.load_record_download_1m_data()  # alc.pd_read(database=db_basic, table=tb_basic)
 
-            record['StartDate'] = pd.to_datetime(record['StartDate'])
             record['EndDate'] = pd.to_datetime(record['EndDate'])
             record['RecordDate'] = pd.to_datetime(record['RecordDate'])
+            record = record[(record['EndDate'] < current)]
 
-            dl1 = record[(record['Classification'] == '行业板块') &
-                         (record['EndDate'] < current)]
-
-            dl2 = record[(record['Classification'] != '行业板块') &
-                         (record['StartDate'] < pd.to_datetime('2020-01-01')) &
-                         (record['EndDate'] < current)]
-
-            dl = pd.concat([dl1, dl2], ignore_index=True).sort_values(by=['EndDate']).reset_index(drop=True)
-
-            if dl.empty:
+            if record.empty:
                 logging.info('已是最新数据')
                 break
 
-            shapes = dl.shape[0]
-            for (i, row) in dl.iterrows():
+            shapes = record.shape[0]
+            for (i, row) in record.iterrows():
                 logging.info(f'\n下载进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
-                id_ = row['id']
-                stock_name = row['name']
-                stock_code = row['code']
 
-                escode = row['EsCode']
-                classification = row['Classification']
+                id_, stock_name, stock_code, escode, classification, record_ending = (
+                    row['id'], row['name'], row['code'], row['EsCode'], row['Classification'], row['EndDate'])
 
-                record_ending = row['EndDate']
                 days = (current - record_ending).days  # 距当前的天数， 判断下载几天的数据
 
                 if days <= 0:
@@ -128,25 +115,29 @@ class DataDailyRenew:
                 ending = pd.to_datetime(ending)
 
                 if ending > record_ending:
-                    year_ = ending.year
-                    StockData1m.append_1m(code_=stock_code, year_=str(year_), data=data)
+                    year_ = str(ending.year)
 
-                    sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
-                    set EndDate='{ending}', RecordDate = '{current}', 
-                    EsDownload = 'success' where id={id_}; '''
-                    LoadBasicInform.basic_execute_sql(sql)
+                    save_1m_to_mysql(stock_code, year_, data)  # 将下载的1分钟数据，保存至 sql 数据库
 
                     save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
 
-                    save_1m_to_daily(data, stock_code) # 将下载的1分钟数据，同时保存至 daily sql table
+                    save_1m_to_daily(data, stock_code)  # 将下载的1分钟数据，同时保存至 daily sql table
+
+                    # 更新参数
+                    sql = f'''update %s.%s 
+                    set EndDate='%s', RecordDate = '%s', 
+                    EsDownload = 'success' where id= %s; '''
+                    params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
+                    RecordStock.update_record_download_1m_data_table(sql, params)
 
                 if ending == record_ending:
-                    # data record date equal download end date ,just renew record date
-                    sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} set 
-                    EndDate = '{ending}', RecordDate = '{current}' where id = {id_}; '''
-                    LoadBasicInform.basic_execute_sql(sql)
+                    sql = f'''update %s. %s set 
+                    EndDate = '%s', RecordDate = '%s' where id = %s; '''
+                    params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
+                    RecordStock.update_record_download_1m_data_table(sql, params)
 
-                    logging.info(f'{LoadBasicInform.tb_minute} 数据更新成功: {stock_name}, {stock_code}')
+                    logging.info(
+                        f'{RecordStock.table_record_download_1m_data} 数据更新成功: {stock_name}, {stock_code}')
 
                 time.sleep(2)
 
@@ -161,8 +152,7 @@ class DataDailyRenew:
         tables = ['tostock', 'amount', 'toboard']
 
         record = LoadBasicInform.load_record_north_funds()
-        print(record)
-
+        # print(record)
         for index in record.index:
 
             table = record.loc[index, 'name']
@@ -181,7 +171,7 @@ class DataDailyRenew:
 
                 if table == tables[0]:  # 北向资金流入个股数据；
 
-                    data = dle.funds_to_stock()  # 下载数据
+                    data = My_dle.funds_to_stock()  # 下载数据
 
                     if not data.shape[0]:
                         break
@@ -191,7 +181,7 @@ class DataDailyRenew:
 
                 if table == tables[1]:  # 北向资金日常数据
 
-                    data = dle.funds_daily_data()  # 下载数据
+                    data = My_dle.funds_daily_data()  # 下载数据
 
                     if not data.shape[0]:
                         break
@@ -210,7 +200,7 @@ class DataDailyRenew:
                         i = i + 1
                         date_ = _ending + pd.Timedelta(days=i)
                         date_ = date_.strftime('%Y-%m-%d')
-                        dl = dle.funds_to_sectors(date_)  # 下载无最新数据时
+                        dl = My_dle.funds_to_sectors(date_)  # 下载无最新数据时
 
                         if not dl.shape[0]:
                             continue
@@ -228,14 +218,14 @@ class DataDailyRenew:
                 if not ending or ending <= _ending:
                     print(f'{table}无最新数据;')
                     continue
-
-                sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_record_north_funds} set 
-                ending_date = '{ending}', renew_date='{current}' where id={id_}; '''
-                LoadBasicInform.basic_execute_sql(sql=sql)
-                print(f'{table}数据更新成功;')
+                params = (LoadBasicInform.db_basic, LoadBasicInform.tb_record_north_funds, ending, current, id_)
+                sql = f'''update %s.%s set 
+                ending_date = '%s', renew_date='%s' where id=%s; '''
+                LoadBasicInform.basic_execute_sql(sql=sql, params=params)
+                logging.info(f'{table}数据更新成功;')
 
             except Exception as ex:
-                print(f'{table} 数据更新异常:\n{ex}')
+                logging.info(f'{table} 数据更新异常:\n{ex}')
 
 
 class RMDownloadData(DataDailyRenew):
@@ -256,16 +246,12 @@ class RMDownloadData(DataDailyRenew):
             self.renew_NorthFunds()  # 北向资金信息
 
         elif current_time > market_close:
-            self.download_1mData()  # 更新股票当天1m信息；
+            self.download_1m_data()  # 更新股票当天1m信息；
+
             self.renew_NorthFunds()  # 北向资金信息
 
 
 if __name__ == '__main__':
-    stock_name_ = 'aaa'
-    stock_code_ = '100121'
-    logging.basicConfig(level=logging.INFO)
-    logging.info(f'无最新1m数据: {stock_name_}, {stock_code_};')
-    exit()
     rn = DataDailyRenew()
     # rn.download_1mData()
-    rn.download_1mData()
+    rn.download_1m_data()

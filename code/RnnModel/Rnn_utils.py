@@ -10,21 +10,23 @@ def reset_record_time(_date):
     ids = LoadRnnModel.load_run_record()
     ids = tuple(ids['id'])
 
-    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_run_record} 
-    set SignalStartTime = '{time_}', 
-    Time15m = '{time_}' where id in {ids};'''
+    sql = f'''update %s.%s
+    set SignalStartTime = '%s', 
+    Time15m = '%s' where id in %s;'''
 
-    LoadRnnModel.rnn_execute_sql(sql)
+    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record, time_, time_, ids)
+    LoadRnnModel.rnn_execute_sql(sql, params)
 
 
 def reset_id_time(id_, _date):
     time_ = (pd.to_datetime(_date) + pd.Timedelta(days=-150)).date()
 
-    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_run_record} set 
-    SignalStartTime = '{time_}', 
-    Time15m = '{time_}' where id = {id_};'''
+    sql = f'''update %s.%s set 
+    SignalStartTime = '%s', 
+    Time15m = '%s' where id = %s;'''
 
-    LoadRnnModel.rnn_execute_sql(sql)
+    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record, time_, time_, id_)
+    LoadRnnModel.rnn_execute_sql(sql, params)
 
 
 def date_range(_date, date_, code_='bk0424') -> list:
@@ -79,6 +81,7 @@ def pre_month_data_list(month: str, classification: str) -> list:
 
     # 再添加路径
     for m in folder_names:
+
         try:
             folder_names[folder_names.index(m)] = os.path.join(root_path, m, classification)
 

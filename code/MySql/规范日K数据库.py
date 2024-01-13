@@ -4,7 +4,6 @@ from code.RnnDataFile.password import sql_password
 
 
 def rename_daily_table_name():
-
     # 获取所有表格名称
     # cursor.execute("SHOW TABLES")
     database = 'stock_daily_data'

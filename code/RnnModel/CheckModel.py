@@ -48,14 +48,14 @@ class StockEvaluator:
     def update_model_check_status(self, record_id, check_date, status):
 
         sql = f'''
-            UPDATE {self.DB_RNN}.{self.TB_TRAIN_RECORD} SET 
-            ModelCheckTiming = '{pd.Timestamp.now()}',
-            ModelCheck = '{status}',
-            ModelError = '{status}',
-            ModelCheckTiming = '{check_date}' WHERE id={record_id};
+            UPDATE %s.%s SET 
+            ModelCheckTiming = %s,
+            ModelCheck = %s,
+            ModelError = %s,
+            ModelCheckTiming = '%s' WHERE id=%s;
         '''
-
-        LoadRnnModel.rnn_execute_sql(sql)
+        parser = (self.DB_RNN, self.TB_TRAIN_RECORD, pd.Timestamp.now(), status, status, check_date, record_id)
+        LoadRnnModel.rnn_execute_sql(sql, parser)
 
     def run_evaluation(self):
         count = 0
@@ -87,24 +87,28 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
 
             if check_model:
 
-                sql2 = f'''update {db}.{tb} set 
-                ModelCheckTiming = '{pd.Timestamp.now()}',
+                sql2 = f'''update %s.%s set 
+                ModelCheckTiming = '%s',
                 ModelCheck = 'success',
                 ModelError = 'success',
-                ModelCheckTiming = '{check_date}' where id={id_};'''
+                ModelCheckTiming = '%s' where id=%s;'''
 
-                LoadRnnModel.rnn_execute_sql(sql2)
+                parser = (db, tb, pd.Timestamp.now(), check_date, id_)
+                LoadRnnModel.rnn_execute_sql(sql2, parser)
 
         except Exception as ex:
 
             print(f'Error: {ex}')
 
             if check_model:
+
                 sql2 = f'''update {db}.{tb} set 
                 ModelCheck = 'error',
                 ModelError = 'error',
                 ModelCheckTiming = '{check_date}' where id={id_};'''
-                LoadRnnModel.rnn_execute_sql(sql2)
+
+                parser = (db, tb, check_date, id_)
+                LoadRnnModel.rnn_execute_sql(sql2, parser)
 
         count += 1
 
@@ -172,7 +176,9 @@ class RMHistoryCheck:
 
         for day_ in list_day:
             multiprocessing_count_pool(day_, check_model=False)
-            PoolCount.count_trend()
+
+            my_pool_count = PoolCount()
+            my_pool_count.count_trend()
             print(f'日期{day_}完成;')
 
     def loop_by_check_model(self):
@@ -181,7 +187,8 @@ class RMHistoryCheck:
 
         for day_ in list_day:
             multiprocessing_count_pool(day_, check_model=True)
-            PoolCount.count_trend()
+            my_pool_count = PoolCount()
+            my_pool_count.count_trend()
             print(f'日期{day_}完成;')
 
 

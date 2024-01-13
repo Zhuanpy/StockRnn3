@@ -27,6 +27,7 @@ class RMMonitor:
 
         results = pd.concat([positions, reTrend, trading], ignore_index=True)
         print(results)
+        return results
 
     def monitor_buy_stock(self, start_, end_):
         i = 0
@@ -89,7 +90,8 @@ class RMMonitor:
             Stock = data.loc[index, 'code']
             stop_loss = data.loc[index, 'StopLoss']
 
-            run = PredictionCommon(stock=Stock, month_parsers=self.months, monitor=True, check_date=None, stopLoss=stop_loss, position=1)
+            run = PredictionCommon(stock=Stock, month_parsers=self.months,
+                                   monitor=True, check_date=None, stop_loss=stop_loss, position=1)
             run.single_stock()
 
         self.show_results()

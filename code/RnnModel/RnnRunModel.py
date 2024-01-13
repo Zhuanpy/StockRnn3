@@ -5,9 +5,9 @@ from keras.models import load_model
 from keras import backend as k
 from code.downloads.DlDataCombine import download_1m
 from code.MySql.LoadMysql import StockData1m, LoadRnnModel, StockData15m, StockPoolData
-from code.MySql.DB_MySql import sql_data
+from code.MySql.DB_MySql import execute_sql_return_value
 from code.MySql.sql_utils import Stocks
-from code.Normal import MathematicalFormula as mf
+from code.Normal import MathematicalFormula as MyFormula
 from code.Normal import ResampleData, Useful, count_times, ReadSaveFile
 from code.Signals.StatisticsMacd import SignalMethod
 from code.parsers.RnnParser import *
@@ -98,7 +98,7 @@ class ModelData(Parsers):
         data_1m = self.read_1m_by_15m_record()
         data_ = download_1m(self.stock_name, self.stock_code, days=1)
 
-        monitor_1m_data = StockDataPath.monitor_1m_data_path(self.stock_code)   # 通过文件路径函数找到对应数据
+        monitor_1m_data = StockDataPath.monitor_1m_data_path(self.stock_code)  # 通过文件路径函数找到对应数据
         if not data_.empty:
             data_.to_csv(monitor_1m_data, index=False)
 
@@ -152,14 +152,19 @@ class ModelData(Parsers):
         # 监测时，会出现非整数时间，此时需要把此时间删除  例如： bar date = 14:13:00
         db = StockData15m.db_15m
 
-        sql1 = f'''select * from {db}.`{self.stock_code}` 
-        where date in (select max(date) from {db}.`{self.stock_code}`);'''
-        _end_date = sql_data(database='stock_15m_data', sql=sql1)[0][0]
+        sql1 = f'''select * from %s.` %s` 
+        where date in (select max(date) from  %s.` %s`);'''
+
+        params = (db, self.stock_code, db, self.stock_code)
+        _end_date = execute_sql_return_value(db, sql1, params)
+
+        _end_date = _end_date[0][0]
         end_date = self.data_15m.iloc[-1]['date']
 
         if _end_date < end_date and _end_date not in list(self.data_15m['date']):
-            sql2 = f'''delete from {db}.`{self.stock_code}` where date='{_end_date}';'''
-            StockData15m.data15m_execute_sql(sql2)
+            sql2 = f'''delete from %s.`%s` where date='%s';'''
+            parser = (db, self.stock_code, _end_date)
+            StockData15m.data15m_execute_sql(sql2, parser)
 
         new = self.data_15m[self.data_15m['date'] > _end_date]
 
@@ -181,11 +186,13 @@ class ModelData(Parsers):
                     sl = new_data.loc[index, 'Signal']
                     slc = new_data.loc[index, 'SignalChoice']
 
-                    sql3 = f'''update {db}.`{self.stock_code}` set 
-                    SignalTimes = '{sts}',
-                    SignalStartTime = '{stt}',
-                    `Signal` = '{sl}', SignalChoice='{slc}' where date = '{data_id}';'''
-                    StockData15m.data15m_execute_sql(sql3)
+                    sql3 = f'''update %s.`%s` set 
+                    SignalTimes = '%s',
+                    SignalStartTime = '%s',
+                    `Signal` = '%s', SignalChoice='%s' where date = '%s';'''
+
+                    parser = (db, self.stock_code, sts, stt, sl, slc, data_id)
+                    StockData15m.data15m_execute_sql(sql3, parser)
 
                 # 保存 15m 数据 截止日期
                 date_ = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
@@ -229,9 +236,11 @@ class ModelData(Parsers):
 
         t15m = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].date()
 
-        sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_run_record} 
-        set Time15m = '{t15m}' where id = {self.stock_id};'''
-        LoadRnnModel.rnn_execute_sql(sql)
+        sql = f'''update %s.%s 
+        set Time15m = '%s' where id = %s;'''
+
+        parser = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record, t15m, self.stock_id)
+        LoadRnnModel.rnn_execute_sql(sql, parser)
 
         self.data_15m = self.data_15m.set_index('date', drop=True)
 
@@ -423,49 +432,47 @@ class UpdateData(Parsers):
         self._limitTradeTiming = None
 
     def update_StockPool(self):
-        sql = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_pool} set 
-        close = '{self.close}', 
-        ExpPrice = '{self.ExpPrice}',
-        RnnModel='{self.trend_score}', 
-        Trends='{self.trendValue}', 
-        ReTrend='{self.reTrend}', 
-        TrendProbability='{self.ScoreP}', 
-        RecordDate='{self.check_date}' where id={self.stock_id}; '''
+        sql = f'''update %s.%s set 
+        close = '%s', 
+        ExpPrice = '%s',
+        RnnModel= '%s', 
+        Trends= '%s', 
+        ReTrend= '%s', 
+        TrendProbability= '%s',
+        RecordDate= '%s' where id= %s; '''
 
-        StockPoolData.pool_execute_sql(sql)
+        parser = (StockPoolData.db_pool, StockPoolData.tb_pool, self.close,
+                  self.ExpPrice, self.trend_score, self.trendValue,
+                  self.reTrend, self.ScoreP, self.check_date, self.stock_id)
+        StockPoolData.pool_execute_sql(sql, parser)
 
     def update_RecordRun(self):
-        sql1 = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_run_record} set 
-        Trends = '{self.signalValue}',
-        SignalStartTime = '{self.signalStartTime}',
-        PredictCycleLength = '{self.predict_length}',
-        RealCycleLength = '{self.real_length}',
-        PredictCycleChange = '{self.predict_CycleChange}',
-        PredictCyclePrice = '{self.predict_CyclePrice}',
-        RealCycleChange = '{self.real_CycleChange}',
-        PredictBarChange = '{self.predict_bar_change}',
-        RealBarChange = '{self.real_bar_change}',
-        PredictBarVolume = '{self.predict_BarVolume}',
-        RealBarVolume = '{self.real_BarVolume}',
-        ScoreTrends = '{self.trend_score}',
-        TradePoint = '{self.tradAction}',
-        TimeRunBar = '{self.trade_timing}',
-        RenewDate = '{self.current}'
-        where id = '{self.stock_id}';'''
+        sql1 = f'''update %s.%s set 
+        Trends = '%s', SignalStartTime = '%s', PredictCycleLength = '%s', RealCycleLength = '%s',
+        PredictCycleChange = '%s', PredictCyclePrice = '%s', RealCycleChange = '%s', PredictBarChange = '%s',
+        RealBarChange = '%s', PredictBarVolume = '%s', RealBarVolume = '%s', ScoreTrends = '%s',
+        TradePoint = '%s', TimeRunBar = '%s', RenewDate = '%s', where id = '%s','''
 
-        LoadRnnModel.rnn_execute_sql(sql1)
+        parsers = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record,
+                   self.signalValue, self.signalStartTime, self.predict_length, self.real_length,
+                   self.predict_CycleChange, self.predict_CyclePrice, self.real_CycleChange, self.predict_bar_change,
+                   self.real_bar_change, self.predict_BarVolume, self.real_BarVolume, self.trend_score,
+                   self.tradAction, self.trade_timing, self.current, self.stock_id)
+
+        LoadRnnModel.rnn_execute_sql(sql1, parsers)
 
     def update_Data15m(self):
-        sql = f'''update {StockData15m.db_15m}.`{self.stock_code}` set 
-        PredictCycleChange = '{self.predict_CycleChange}',  
-        PredictCyclePrice = '{self.predict_CyclePrice}', 
-        PredictCycleLength = '{self.predict_length}', 
-        PredictBarChange = '{self.predict_bar_change}', 
-        PredictBarPrice = '{self.predict_bar_price}', 
-        PredictBarVolume = '{self.predict_BarVolume}', 
-        ScoreRnnModel = '{self.trend_score}', 
-        TradePoint = '{self.tradAction}' where date='{self.trade_timing}';'''
-        StockData15m.data15m_execute_sql(sql)
+        sql = f'''update %s.`%s` set 
+        PredictCycleChange = '%s', PredictCyclePrice = '%s', PredictCycleLength = '%s', PredictBarChange = '%s',  
+        PredictBarPrice = '%s', PredictBarVolume = '%s', ScoreRnnModel = '%s', TradePoint = '%s',   
+        where date='%s';'''
+
+        parsers = (StockData15m.db_15m, self.stock_code,
+                   self.predict_CycleChange, self.predict_CyclePrice, self.predict_length, self.predict_bar_change,
+                   self.predict_bar_price, self.predict_BarVolume, self.trend_score, self.tradAction,
+                   self.trade_timing)
+
+        StockData15m.data15m_execute_sql(sql, parsers)
 
 
 class TradingAction(Parsers):
@@ -492,8 +499,8 @@ class TradingAction(Parsers):
 
 class PredictionCommon(ModelData, DlModel, UpdateData):
 
-    def __init__(self, stock: str, month_parsers: str, check_date, alpha=1, monitor=True, stopLoss=None, position=None):
-
+    def __init__(self, stock: str, month_parsers: str, check_date,
+                 alpha=1, monitor=True, stop_loss=None, position=None):
         ModelData.__init__(self)
         DlModel.__init__(self)
         UpdateData.__init__(self)
@@ -502,7 +509,7 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
         self.position = position
         self.month_parsers, self.monitor = month_parsers, monitor
-        self.stopLoss = stopLoss
+        self.stopLoss = stop_loss
 
         # todo 读取月份文件夹下数据失败时候怎么处理？
         path = StockDataPath.json_data_path(self.month_parsers, self.stock_code)
@@ -615,19 +622,19 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
             std_ = counts[3]
             if self.signal == 1:
                 # 上涨，选择 30% - 80% 胜率，
-                p30 = mf.normal_get_x(p=0.3, mean=mean_, std=counts[3])
-                p95 = mf.normal_get_x(p=0.95, mean=mean_, std=counts[3])
+                p30 = MyFormula.normal_get_x(p=0.3, mean=mean_, std=counts[3])
+                p95 = MyFormula.normal_get_x(p=0.95, mean=mean_, std=counts[3])
 
                 #  预估值小于0， 不准确时候
                 if self.predict_CycleChange < p30:
                     self.predict_CycleChange = p30
 
                 if self.predict_CycleChange > p95:
-                    self.predict_CycleChange = mf.normal_get_x(p=0.8, mean=mean_, std=std_)
+                    self.predict_CycleChange = MyFormula.normal_get_x(p=0.8, mean=mean_, std=std_)
 
             if self.signal == -1:
                 # 预测跌幅太小（小于均值）时：  选择65%的胜率
-                p65 = mf.normal_get_x(p=0.65, mean=mean_, std=std_)
+                p65 = MyFormula.normal_get_x(p=0.65, mean=mean_, std=std_)
                 if self.predict_CycleChange > mean_:
                     self.predict_CycleChange = p65
 
@@ -672,9 +679,9 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
             if self.signal == 1:
 
-                p30Change = mf.normal_get_x(p=0.3, mean=countChange[2], std=countChange[3])
-                p80Change = mf.normal_get_x(p=0.8, mean=countChange[2], std=countChange[3])
-                p95Change = mf.normal_get_x(p=0.95, mean=countChange[2], std=countChange[3])
+                p30Change = MyFormula.normal_get_x(p=0.3, mean=countChange[2], std=countChange[3])
+                p80Change = MyFormula.normal_get_x(p=0.8, mean=countChange[2], std=countChange[3])
+                p95Change = MyFormula.normal_get_x(p=0.95, mean=countChange[2], std=countChange[3])
 
                 if self.predict_bar_change < p30Change:
                     self.predict_bar_change = p30Change
@@ -682,19 +689,19 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
                 if self.predict_bar_change > p95Change:
                     self.predict_bar_change = p80Change
 
-                p30Vol = mf.normal_get_x(p=0.3, mean=countVol[2], std=countVol[3])
+                p30Vol = MyFormula.normal_get_x(p=0.3, mean=countVol[2], std=countVol[3])
                 if self.predict_BarVolume < p30Vol:
                     self.predict_BarVolume = p30Vol
 
             if self.signal == -1:
                 meanChange = countChange[2]
-                p65Change = mf.normal_get_x(p=0.65, mean=countChange[2], std=countChange[3])
+                p65Change = MyFormula.normal_get_x(p=0.65, mean=countChange[2], std=countChange[3])
 
                 if self.predict_bar_change > meanChange:
                     self.predict_bar_change = p65Change
 
                 meanVol = countVol[2]
-                p65Vol = mf.normal_get_x(p=0.65, mean=countVol[2], std=countVol[3])
+                p65Vol = MyFormula.normal_get_x(p=0.65, mean=countVol[2], std=countVol[3])
                 if self.predict_BarVolume < meanVol:
                     self.predict_BarVolume = p65Vol
 
@@ -722,68 +729,68 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
             if self.real_CycleChange >= self.predict_CycleChange:
                 counts = self.get_json_data(self.updown, 'Amplitude')
 
-                pCycleChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                pCycleChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                 scoreCycleChange = 1 + pCycleChange
 
             if self.real_CycleChange < self.predict_CycleChange:
                 counts = self.get_json_data(self.updown, 'Amplitude')
-                pCycleChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                pCycleChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                 scoreCycleChange = self.predict_CycleChange - self.real_CycleChange
 
             if self.real_length >= self.predict_length:
                 counts = self.get_json_data(self.updown, 'Length')
-                pLength = 1 - mf.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
+                pLength = 1 - MyFormula.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
                 scoreLength = 1 + pLength
 
             if self.real_length < self.predict_length:
                 counts = self.get_json_data(self.updown, 'Length')
-                pLength = 1 - mf.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
-                scoreLength = 1 - mf.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
+                pLength = 1 - MyFormula.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
+                scoreLength = 1 - MyFormula.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
 
             if self.predict_bar_change != 0:
                 if self.real_bar_change > self.predict_bar_change:
                     counts = self.get_json_data(self.updown, 'Amplitude')
-                    pBarChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                    pBarChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                     scoreBarChange = 1 + pBarChange
 
             if self.predict_BarVolume != 0:
                 if self.real_BarVolume > self.predict_BarVolume:
                     counts = self.get_json_data(self.updown, 'Vol')
-                    pBarVol = 0.5 - mf.normal_get_p(x=self.real_BarVolume, mean=counts[2], std=counts[3])
+                    pBarVol = 0.5 - MyFormula.normal_get_p(x=self.real_BarVolume, mean=counts[2], std=counts[3])
                     scoreBarVol = 1 + pBarVol
 
         if self.signal == -1:
 
             if self.real_CycleChange <= self.predict_CycleChange:
                 counts = self.get_json_data(self.updown, 'Amplitude')
-                pCycleChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                pCycleChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                 scoreCycleChange = -1 - pCycleChange
 
             if self.real_CycleChange > self.predict_CycleChange:
                 counts = self.get_json_data(self.updown, 'Amplitude')
-                pCycleChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                pCycleChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                 scoreCycleChange = self.real_CycleChange - self.predict_CycleChange
 
             if self.real_length >= self.predict_length:
                 counts = self.get_json_data(self.updown, 'Length')
-                pLength = 1 - mf.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
+                pLength = 1 - MyFormula.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
                 scoreLength = -1 - pLength
 
             if self.real_length < self.predict_length:
                 counts = self.get_json_data(self.updown, 'Length')
-                pLength = 0.5 - mf.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
+                pLength = 0.5 - MyFormula.normal_get_p(x=self.real_length, mean=counts[2], std=counts[3])
                 scoreLength = -pLength
 
             if self.predict_bar_change != 0:
                 if self.real_bar_change < self.predict_bar_change:
                     counts = self.get_json_data(self.updown, 'Amplitude')
-                    pBarChange = 1 - mf.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
+                    pBarChange = 1 - MyFormula.normal_get_p(x=self.real_CycleChange, mean=counts[2], std=counts[3])
                     scoreBarChange = -1 - pBarChange
 
             if self.predict_BarVolume != 0:
                 if self.real_BarVolume > self.predict_BarVolume:
                     counts = self.get_json_data(self.updown, 'Vol')
-                    pBarVol = 1 - mf.normal_get_p(x=self.real_BarVolume, mean=counts[2], std=counts[3])
+                    pBarVol = 1 - MyFormula.normal_get_p(x=self.real_BarVolume, mean=counts[2], std=counts[3])
                     scoreBarVol = -1 - pBarVol
 
         self.trend_score = round(scoreCycleChange + scoreLength + scoreBarChange + scoreBarVol, 2)

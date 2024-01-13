@@ -96,9 +96,10 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                         StockData1m.replace_1m(code_=code, year_=str(year_), data=data1m)
 
                     # 更新参数
-                    sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} set 
-                    StartDate = '{start_new}' where id = {id_};'''
-                    LoadBasicInform.basic_execute_sql(sql=sql)
+                    sql = f'''update %s.%s. set 
+                    StartDate = '%s.' where id = %s.;'''
+                    params = (LoadBasicInform.db_basic, LoadBasicInform.tb_minute, start_new, id_)
+                    LoadBasicInform.basic_execute_sql(sql=sql, params=params)
 
                     print(f'下载成功: {name}, {code} 1m 数据;')
                     time.sleep(10)
@@ -109,12 +110,12 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
                     if str(ex) == 'Cannot convert non-finite values (NA or inf) to integer':  # 数据下载错误时
 
-                        sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} set 
+                        sql = f'''update %s.%s set 
                         StartDate = '1990-01-01', 
                         EndDate = '2050-01-01', 
                         RecordDate = '2050-01-01' where id = {id_};'''
-
-                        LoadBasicInform.basic_execute_sql(sql=sql)
+                        params = (LoadBasicInform.db_basic, LoadBasicInform.tb_minute)
+                        LoadBasicInform.basic_execute_sql(sql=sql, params=params)
 
                     over_ = str(ex).split('，')[0]
 

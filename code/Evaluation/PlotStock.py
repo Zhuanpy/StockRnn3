@@ -87,7 +87,8 @@ def data_stock_pool(name: str):
     db = StockPoolData.db_pool
     tb = StockPoolData.tb_pool
     sql = f'''SELECT * FROM {db}.{tb} where name = '{name}';'''
-    data = StockPoolData.pool_execute_sql(sql)
+    params = (db, tb, name)
+    data = StockPoolData.pool_execute_sql(sql,params)
 
     return data
 

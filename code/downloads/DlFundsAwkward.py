@@ -31,9 +31,10 @@ class DownloadFundsAwkward:
             record['Status'] = st
             id_ = record.sort_values(by=['id']).iloc[0]['id']
 
-            sql = f''' update {aw.db_funds_awkward}.{aw.tb_funds_500} 
-            set Date = '{self.DlDate}', Status='{st}' where id >= '{id_}';'''
-            aw.awkward_execute_sql(sql=sql)
+            sql = f''' update %s.%s
+            set Date = '%s', Status='%s' where id >= '%s';'''
+            params = (aw.db_funds_awkward, aw.tb_funds_500, self.DlDate, st, id_)
+            aw.awkward_execute_sql(sql=sql, params=params, )
 
         pending = record[(record['Date'] == self.DlDate) & (record['Status'] != 'success')].reset_index(drop=True)
         return pending
@@ -70,10 +71,11 @@ class DownloadFundsAwkward:
                 print(f'{funds_name} data download success;\n')
 
             else:
-                sql = f'''update {aw.db_funds_awkward}.{aw.tb_funds_500} set Status = 'failed' where id = '{id_}';'''
+                sql = f'''update %s.%s set Status = 'failed' where id = '%s';'''
                 print(f'{funds_name} data download failed;\n')
 
-            aw.awkward_execute_sql(sql=sql)
+            params = (aw.db_funds_awkward, aw.tb_funds_500, id_)
+            aw.awkward_execute_sql(sql=sql, params=params)
 
             num += 1
             time.sleep(5)
@@ -147,8 +149,9 @@ class AnalysisFundsAwkward:
                 score = 0
 
             # 更新股票池基金得分
-            sql = f'''update {pl.db_pool}.{pl.tb_pool} set FundsAwkward = {score} where id = '{id_}' ;'''
-            pl.pool_execute_sql(sql)
+            sql = f'''update %s.%s set FundsAwkward = %s where id = '%s' ;'''
+            parser = (pl.db_pool, pl.tb_pool, score, id_)
+            pl.pool_execute_sql(sql, params=parser)
             self.count_dic[stock_name] = score
 
         print(f'Success count: {self.count_dic}')
@@ -180,8 +183,9 @@ class AnalysisFundsAwkward:
                     score = 0
 
                 # 更新股票池基金得分
-                sql = f'''update {pl.db_pool}.{pl.tb_pool} set FundsAwkward={score} where id='{stock_id}';'''
-                pl.pool_execute_sql(sql)
+                sql = f'''update %s. %s set FundsAwkward= %s where id='%s';'''
+                parser = (pl.db_pool, pl.tb_pool, score, stock_id)
+                pl.pool_execute_sql(sql, parser)
                 self.count_dic[stock_name] = score
 
             print(f'Success count: {self.count_dic}')

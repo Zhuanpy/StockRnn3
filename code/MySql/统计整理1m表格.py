@@ -44,11 +44,11 @@ def correction_date_1m_table():
         end_date = data_1m.iloc[-1]['date'].date()
 
         if end_date != record_end:
-            tb = 'record_stock_minute'
-            sql1 = f'update {tb} set EndDate = {end_date} where id = {id_};'
-
-            lm.basic_execute_sql(sql1)
-
+            db_basic = 'stock_basic_information'
+            table = 'record_stock_minute'
+            sql1 = f'update %s.%s set EndDate = %s where id = %s;'
+            params = (db_basic, table, end_date, id_)
+            lm.basic_execute_sql(sql1, params)
             print(f'{name}, {code}: {sql1}')
 
         if _shape != shape_:
@@ -64,8 +64,11 @@ def awkward_data():
     return df
 
 
+# SELECT * FROM stock_basic_information.record_stock_minute;
+
 if __name__ == "__main__":
+    data = lm.load_minute()
     # data = awkward_data()
     # data = data.sort_values(by=['Date', 'count']).tail(50)
     # print(data)
-    correction_date_1m_table()
+    # correction_date_1m_table()

@@ -1,11 +1,11 @@
-from DB_MySql import sql_data
 from DB_MySql import execute_sql
 import multiprocessing
 
 
 def load_tables(db: str, upper=True):
     sql = f'''SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='{db}'; '''
-    li = sql_data(database=db, sql=sql)
+    params = (db, )
+    li = execute_sql(db, sql, params)
     li = list(li)
     li = [i[0].upper() for i in li]
 
@@ -24,8 +24,10 @@ class DropDatabase:
     @classmethod
     def drop_tabel(cls, tb: str):
         db = 'stock_1m_data'
-        sql = f'''DROP TABLE {db}.{tb}; '''
-        execute_sql(db, sql)
+        sql = f'''DROP TABLE %s.%s; '''
+
+        params = (db, tb)
+        execute_sql(db, sql, params)
 
     @classmethod
     def drop_tabel_loop(cls, _i: int, i_: int, tabel: list):

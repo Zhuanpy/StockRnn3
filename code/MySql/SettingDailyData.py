@@ -68,8 +68,9 @@ def check_my_daily_data():
 
                 try:
                     sql = f'DROP TABLE `{db}`.`{code_}`;'
-                    execute_sql(database=db, sql=sql)
+                    parser = (db, code_)
 
+                    execute_sql(db, sql, parser)
                     daily.loc[index, 'Delete'] = 'Y'
                     daily.loc[index, 'Ddone'] = 'Y'
 
@@ -105,7 +106,9 @@ def check_my_daily_data():
             if pd.Timestamp(d_end) < pd.Timestamp('2023-01-01'):
                 try:
                     sql = f'DROP TABLE `{db}`.`{code_}`;'
-                    execute_sql(database=db, sql=sql)
+
+                    parser = (db, code_)
+                    execute_sql(db, sql, parser)
 
                     daily.loc[index, 'Delete'] = 'Y'
                     daily.loc[index, 'Ddone'] = 'Y'
@@ -173,7 +176,10 @@ def my_daily_data():
         ### 设置 ID
         try:
             sql = f'ALTER TABLE `{db}`.`{code}` CHANGE COLUMN `date` `date` DATE NOT NULL , ADD PRIMARY KEY (`date`);'
-            execute_sql(database=db, sql=sql)
+
+            parser = (db, code)
+            execute_sql(db, sql, parser)
+
             settingid = 'Y'
 
         except:

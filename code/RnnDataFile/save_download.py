@@ -4,6 +4,12 @@ from code.Normal import ResampleData
 from code.MySql.DB_MySql import MysqlAlchemy
 import pandas as pd
 from code.RnnDataFile.stock_path import StockDataPath
+from code.MySql.LoadMysql import StockData1m
+
+
+def save_1m_to_mysql(stock_code: str, year: str, data):
+    StockData1m.append_1m(stock_code, year, data)
+    return True
 
 
 def save_1m_to_csv(df, stock_code: str):
@@ -29,9 +35,10 @@ def save_1m_to_csv(df, stock_code: str):
         else:
             month_data.to_csv(file_path, index=False)
 
+
 def save_1m_to_daily(df, stock_code: str):
     df_daily = ResampleData.resample_1m_data(df, 'd')
-    database = 'stock_daily_data'
+    database = 'datadaily'
     table = stock_code
     MysqlAlchemy.pd_append(df_daily, database, table)
     return True

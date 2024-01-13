@@ -14,7 +14,7 @@ import numpy as np
 from keras import backend as k
 import pandas as pd
 from code.parsers.RnnParser import *
-from Rnn_utils import rnn_data_path, find_file_in_paths
+from Rnn_utils import find_file_in_paths
 from code.RnnDataFile.stock_path import StockDataPath
 
 pd.set_option('display.max_columns', None)
@@ -137,17 +137,22 @@ class RMBuiltModel:
                     train = BuiltModel(stock_, self.months)
                     train.model_all()
 
-                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
+                    sql = f'''update %s.%s set 
                     ModelCreate = 'success', 
-                    ModelCreateTiming = {current} where id = {id_};'''
+                    ModelCreateTiming = %s where id = %s;'''
+
+                    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, current, id_)
 
                 except Exception as ex:
                     print(f'ModelCreate Error : {ex}')
+
                     sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
                     ModelCreate = 'error', 
                     ModelCreateTiming = '{current}' where id = '{id_}';'''
 
-                LoadRnnModel.rnn_execute_sql(sql)
+                    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, current, id_)
+
+                LoadRnnModel.rnn_execute_sql(sql, params)
 
 
 if __name__ == '__main__':
