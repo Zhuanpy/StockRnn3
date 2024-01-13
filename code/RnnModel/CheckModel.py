@@ -187,7 +187,5 @@ class RMHistoryCheck:
 
 if __name__ == '__main__':
     start_ = '2022-10-26'
-    # end_ = '2022-10-26'
-    # month_ = '2022-02'
     rm = RMHistoryCheck(_date=start_)
     rm.loop_by_date()

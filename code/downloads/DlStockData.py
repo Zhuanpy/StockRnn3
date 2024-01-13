@@ -2,7 +2,7 @@ import time
 from DlEastMoney import DownloadData as dle
 import pandas as pd
 from code.MySql.LoadMysql import StockData1m, LoadBasicInform, LoadNortFunds
-from code.RnnDataFile.save_download import save_1m_to_csv
+from code.RnnDataFile.save_download import save_1m_to_csv, save_1m_to_daily
 import datetime
 import logging
 
@@ -18,7 +18,6 @@ class StockType:
 
 
 def download_1m_by_type(code: str, days: int, stock_type: str):
-
     """
     download stock data 1m data , return download data & data end date ;
     Download stock 1m data from Eastmoney.
@@ -129,25 +128,17 @@ class DataDailyRenew:
                 ending = pd.to_datetime(ending)
 
                 if ending > record_ending:
+                    year_ = ending.year
+                    StockData1m.append_1m(code_=stock_code, year_=str(year_), data=data)
 
-                    try:
-                        # 保存 1m数据;
-                        year_ = ending.year
-                        StockData1m.append_1m(code_=stock_code, year_=str(year_), data=data)
+                    sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
+                    set EndDate='{ending}', RecordDate = '{current}', 
+                    EsDownload = 'success' where id={id_}; '''
+                    LoadBasicInform.basic_execute_sql(sql)
 
-                        sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
-                        set EndDate='{ending}', RecordDate = '{current}', 
-                        EsDownload = 'success' where id={id_}; '''
-                        LoadBasicInform.basic_execute_sql(sql)
+                    save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
 
-                        save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
-
-                    except Exception as ex:
-                        sql = f'''update {LoadBasicInform.db_basic}.{LoadBasicInform.tb_minute} 
-                        set RecordDate = '{current}', EsDownload = 'failed' where id={id_}; '''
-                        LoadBasicInform.basic_execute_sql(sql)
-                        logging.info(f'股票：{stock_name}, {stock_code}存储数据异常: {ex}')
-                        # todo 加载日志
+                    save_1m_to_daily(data, stock_code) # 将下载的1分钟数据，同时保存至 daily sql table
 
                 if ending == record_ending:
                     # data record date equal download end date ,just renew record date
@@ -254,7 +245,6 @@ class RMDownloadData(DataDailyRenew):
 
     def __init__(self):
         super().__init__()
-        # DataDailyRenew.__init__(self)
 
     def daily_renew_data(self):
 

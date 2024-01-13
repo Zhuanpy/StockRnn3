@@ -10,8 +10,7 @@ pd.set_option('display.width', 5000)
 
 def sql_cursor(database: str):
     w = sql_password()
-    cur = pymysql.connect(host='localhost', user='root', password=w,
-                          database=database, charset='utf8', autocommit=True)
+    cur = pymysql.connect(host='localhost', user='root', password=w, database=database, charset='utf8', autocommit=True)
     cursor = cur.cursor()
     return cursor
 

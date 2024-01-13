@@ -4,7 +4,6 @@ import multiprocessing
 
 
 def load_tables(db: str, upper=True):
-
     sql = f'''SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='{db}'; '''
     li = sql_data(database=db, sql=sql)
     li = list(li)
@@ -58,6 +57,7 @@ class DropDatabase:
 
 
 if __name__ == '__main__':
-    db = 'data1m2022'
-    tables = load_tables(db=db)
+    db = 'stock_daily_data'
+    tables = load_tables(db)
+    print(tables)
 

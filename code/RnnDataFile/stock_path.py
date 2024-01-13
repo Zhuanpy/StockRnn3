@@ -28,6 +28,11 @@ class StockDataPath:
         r = os.path.join(data_path, 'columns')
         return r
 
+    @classmethod
+    def month_1m_data_path(cls, month_parser: str, stock_code: str):
+        r = os.path.join(data_path, 'RnnData', month_parser, '1m', f'{stock_code}.csv')
+        return r
+
 
 class AnalysisDataPath:
 

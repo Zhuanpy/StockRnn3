@@ -240,27 +240,22 @@ class ResampleData:
     @classmethod
     def resample_1m_data(cls, data, freq):
 
-        if freq == '15m':
-            data = cls.resample_fun(data=data, parameter='15T')
-
-        if freq == '30m':
-            data = cls.resample_fun(data=data, parameter='30T')
+        if freq in ['15m', '30m', '120m']:
+            time_mappings = {'15m': '15T', '30m': '30T', '120m': '360T'}
+            data = cls.resample_fun(data=data, parameter=time_mappings[freq])
 
         if freq == '60m':
             data.loc[:, 'minute_time'] = data['date'].dt.time
 
             m_df = data[data['minute_time'] < pd.to_datetime('12:00:00').time()]
-            m_df = cls.resample_fun(data=m_df, parameter='90T')
-
             a_df = data[data['minute_time'] > pd.to_datetime('12:00:00').time()]
+
+            m_df = cls.resample_fun(data=m_df, parameter='90T')
             a_df = cls.resample_fun(data=a_df, parameter='60T')
 
             data = pd.concat([m_df, a_df]).sort_values(by='date').reset_index(drop=True)
 
-        if freq == '120m':
-            data = cls.resample_fun(data=data, parameter='360T')
-
-        if freq == 'day':
+        if freq in ['day', 'daily', 'd', 'D']:
             data = cls.resample_fun(data=data, parameter='1440T')
             data['date'] = pd.to_datetime(data['date']).dt.date
 
@@ -313,7 +308,6 @@ class Useful:
 
     @classmethod
     def stock_columns(cls):
-
         basic = {1: 'date', 2: 'open', 3: 'close', 4: 'high', 5: 'low', 6: 'volume', 7: 'money'}
 
         macd_columns = {1: 'EmaShort', 2: 'EmaMid', 3: 'EmaLong', 4: 'DIF', 5: 'DIFSm', 6: 'DIFMl', 7: 'DEA', 8: 'MACD'}
