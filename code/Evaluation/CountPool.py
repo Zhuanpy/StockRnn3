@@ -143,6 +143,5 @@ class PoolCount:
 
 if __name__ == '__main__':
     _date_ = '2022-11-18'
-    # count_board_by_date(date_=date_)
     pc = PoolCount()
     pc.count_trend()
