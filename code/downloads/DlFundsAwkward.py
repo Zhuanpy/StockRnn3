@@ -148,9 +148,9 @@ class AnalysisFundsAwkward:
                 score = 0
 
             # 更新股票池基金得分
-            sql = f'''update %s.%s set FundsAwkward = %s where id = '%s' ;'''
-            parser = (pl.db_pool, pl.tb_pool, score, id_)
-            pl.pool_execute_sql(sql, params=parser)
+            sql = f'''FundsAwkward = %s where id = '%s' ;'''
+            parser = (score, id_)
+            pl.set_table_to_pool(sql, params=parser)
             self.count_dic[stock_name] = score
 
         print(f'Success count: {self.count_dic}')
@@ -182,9 +182,9 @@ class AnalysisFundsAwkward:
                     score = 0
 
                 # 更新股票池基金得分
-                sql = f'''update %s. %s set FundsAwkward= %s where id='%s';'''
-                parser = (pl.db_pool, pl.tb_pool, score, stock_id)
-                pl.pool_execute_sql(sql, parser)
+                sql = f'''FundsAwkward= %s where id='%s';'''
+                parser = (score, stock_id)
+                pl.set_table_to_pool(sql, parser)
                 self.count_dic[stock_name] = score
 
             print(f'Success count: {self.count_dic}')
