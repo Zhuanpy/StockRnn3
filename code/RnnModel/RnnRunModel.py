@@ -431,19 +431,13 @@ class UpdateData(Parsers):
         self._limitTradeTiming = None
 
     def update_StockPool(self):
-        sql = f'''update %s.%s set 
-        close = '%s', 
-        ExpPrice = '%s',
-        RnnModel= '%s', 
-        Trends= '%s', 
-        ReTrend= '%s', 
-        TrendProbability= '%s',
-        RecordDate= '%s' where id= %s; '''
+        sql = f''' close = '%s', ExpPrice = '%s', RnnModel= '%s', Trends= '%s', 
+        ReTrend= '%s', TrendProbability= '%s', RecordDate= '%s' where id= %s; '''
 
-        parser = (StockPoolData.db_pool, StockPoolData.tb_pool, self.close,
+        parser = (self.close,
                   self.ExpPrice, self.trend_score, self.trendValue,
                   self.reTrend, self.ScoreP, self.check_date, self.stock_id)
-        StockPoolData.pool_execute_sql(sql, parser)
+        StockPoolData.set_table_to_pool(sql, parser)
 
     def update_RecordRun(self):
         sql1 = f''' Trends = '%s', SignalStartTime = '%s', PredictCycleLength = '%s', RealCycleLength = '%s',

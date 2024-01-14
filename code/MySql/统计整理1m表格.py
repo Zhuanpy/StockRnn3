@@ -44,11 +44,9 @@ def correction_date_1m_table():
         end_date = data_1m.iloc[-1]['date'].date()
 
         if end_date != record_end:
-            db_basic = 'stock_basic_information'
-            table = 'record_stock_minute'
-            sql1 = f'update %s.%s set EndDate = %s where id = %s;'
-            params = (db_basic, table, end_date, id_)
-            lm.basic_execute_sql(sql1, params)
+            sql1 = f'EndDate = %s where id = %s;'
+            params = (end_date, id_)
+            lm.set_table_minute_record(sql1, params)
             print(f'{name}, {code}: {sql1}')
 
         if _shape != shape_:

@@ -72,8 +72,14 @@ class StockPoolData:
 
     tb_pool = 'stockpool'
     tb_poolCount = 'poolcount'
+
     tb_trade_record = 'traderecord'
     tb_board = 'board'
+
+    @classmethod
+    def set_table_trade_record(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_pool}.{cls.tb_trade_record} SET {sql}'
+        execute_sql(cls.db_pool, sql, params)
 
     @classmethod
     def load_StockPool(cls):
@@ -107,7 +113,13 @@ class StockPoolData:
         Alc.pd_append(data, cls.db_pool, cls.tb_poolCount)
 
     @classmethod
-    def pool_execute_sql(cls, sql, params: tuple):
+    def set_table_to_board(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_pool}.{cls.tb_board} SET {sql}'
+        execute_sql(cls.db_pool, sql, params)
+
+    @classmethod
+    def set_table_to_pool(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_pool}.{cls.tb_pool} SET {sql}'
         execute_sql(cls.db_pool, sql, params)
 
     @classmethod
@@ -264,6 +276,7 @@ class LoadBasic:
 
 
 class RecordStock:
+
     db = 'stockrecord'
 
     table_record_download_1m_data = 'recorddownload1mdata'
@@ -285,14 +298,14 @@ class RecordStock:
         return df
 
     @classmethod
-    def update_record_download_top500fundspositionstock(cls, sql: str, params: tuple):
+    def set_table_record_download_top500fundspositionstock(cls, sql: str, params: tuple):
+        sql = f'UPDATE {cls.db}.{cls.table_record_download_top500} SET {sql}'
         execute_sql(cls.db, sql, params)
-        # return True
 
 
 if __name__ == '__main__':
     # lf = LoadBasicInform()
-    data_ = LoadFundsAwkward.load_top500()
+    data_ = LoadFundsAwkward.load_fundsAwkward()
     # record_download_top500fundspositionstock
     data_ = data_[['id', 'Name', 'Code', 'Status', 'Date']]
     database = 'stockrecord'

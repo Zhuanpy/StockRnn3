@@ -25,11 +25,9 @@ def distinguish_board(code_, date_, id_=None, freq='120m'):
     label, value_ = dis.distinguish_1m(stock_code=code_, freq=freq, date_=date_)
 
     # 更新数据
-    sql = f'''update {StockPoolData.db_pool}.{StockPoolData.tb_board} 
-    set Trends= '{value_}', 
-    RecordDate='{date_}' where id='{id_}';'''
-
-    StockPoolData.pool_execute_sql(sql)
+    sql = f''' Trends= '{value_}', RecordDate='{date_}' where id='{id_}';'''
+    params = (value_, date_, id_)
+    StockPoolData.set_table_to_board(sql, params)
 
 
 def board_evaluate(day_, _num, num_, data):

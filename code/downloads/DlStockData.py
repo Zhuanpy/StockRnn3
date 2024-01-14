@@ -124,20 +124,16 @@ class DataDailyRenew:
                     save_1m_to_daily(data, stock_code)  # 将下载的1分钟数据，同时保存至 daily sql table
 
                     # 更新参数
-                    sql = f'''update %s.%s 
-                    set EndDate='%s', RecordDate = '%s', 
-                    EsDownload = 'success' where id= %s; '''
+                    sql = f'''EndDate='%s', RecordDate = '%s', EsDownload = 'success' where id= %s; '''
                     params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
-                    RecordStock.update_record_download_1m_data_table(sql, params)
+                    RecordStock.set_table_record_download_1m_data(sql, params)
 
                 if ending == record_ending:
-                    sql = f'''update %s. %s set 
-                    EndDate = '%s', RecordDate = '%s' where id = %s; '''
+                    sql = f''' EndDate = '%s', RecordDate = '%s' where id = %s; '''
                     params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
-                    RecordStock.update_record_download_1m_data_table(sql, params)
+                    RecordStock.set_table_record_download_1m_data(sql, params)
 
-                    logging.info(
-                        f'{RecordStock.table_record_download_1m_data} 数据更新成功: {stock_name}, {stock_code}')
+                    logging.info(f'{RecordStock.table_record_download_1m_data} 数据更新成功: {stock_name}, {stock_code}')
 
                 time.sleep(2)
 
@@ -218,10 +214,10 @@ class DataDailyRenew:
                 if not ending or ending <= _ending:
                     print(f'{table}无最新数据;')
                     continue
-                params = (LoadBasicInform.db_basic, LoadBasicInform.tb_record_north_funds, ending, current, id_)
-                sql = f'''update %s.%s set 
-                ending_date = '%s', renew_date='%s' where id=%s; '''
-                LoadBasicInform.basic_execute_sql(sql=sql, params=params)
+
+                sql = f''' ending_date = '%s', renew_date='%s' where id=%s; '''
+                params = (ending, current, id_)
+                LoadBasicInform.set_table_record_north_funds(sql=sql, params=params)
                 logging.info(f'{table}数据更新成功;')
 
             except Exception as ex:

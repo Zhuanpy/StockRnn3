@@ -314,7 +314,9 @@ class Application(MenuBar):
     def plot_area(self, bg='red'):  # 模型处理
 
         def plot1_command():
+
             import pandas
+
             try:
                 stock = e1.get()
                 pp = PlotsStock(stock)

@@ -1,9 +1,9 @@
 from code.MySql.LoadMysql import StockPoolData
 import pandas as pd
+import numpy as np
 
 
 def count_board_by_date(date_):
-
     """统计板块表格"""
 
     ''' count board '''
@@ -29,9 +29,6 @@ def count_board_by_date(date_):
     StockPoolData.pool_execute_sql(sql, params=params)
 
 
-import numpy as np
-
-
 class PoolCount:
     """
         统计股票池的趋势并将结果存储到数据库中。
@@ -49,12 +46,15 @@ class PoolCount:
         """
 
     def __int__(self, date_=None):
+
         self.date_ = date_
-        self.ups, self.re_ups, self.downs, self.re_downs, self._down, self.down_, self._up, self.up_ = None, None, None, None, None, None, None, None
+        self.ups, self.re_ups, self._up, self.up_ = None, None, None, None,
+        self.downs, self.re_downs, self._down, self.down_ =  None, None, None, None
         self.up1, self.up2, self.up3, self.down1, self.down2, self.down3 = None, None, None, None, None, None
         self.b_down, self.b_down_, self.b_up, self.b_up_ = None, None, None, None
 
     def load_pool_data(self):
+
         pool = StockPoolData.load_StockPool()
 
         if not self.date_:
@@ -66,6 +66,7 @@ class PoolCount:
         return pool
 
     def calculate_trend_statistics(self, pool):
+
         pool['UpDown'] = np.where(pool['Trends'].isin([2, 3]), 1, -1)
 
         self.ups = pool[pool['UpDown'] == 1].shape[0]
@@ -151,7 +152,7 @@ class PoolCount:
 
 
 if __name__ == '__main__':
-    date_ = '2022-11-18'
+    _date_ = '2022-11-18'
     # count_board_by_date(date_=date_)
     pc = PoolCount()
     pc.count_trend()

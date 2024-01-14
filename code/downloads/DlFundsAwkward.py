@@ -29,14 +29,10 @@ class DownloadFundsAwkward:
         if record_date != self.download_date:
             record['Date'] = self.download_date
             record['Status'] = 'pending'
-
-            database = RecordStock.db
-            tb = RecordStock.table_record_download_top500
-            sql = f"UPDATE `{database}`.`{tb}` SET `Status` = 'pending', `Date` = %s;"
-
+            sql = f" `Status` = 'pending', `Date` = %s;"
             # 更新表格数据
             params = (self.download_date,)
-            RecordStock.update_record_download_top500fundspositionstock(sql, params)
+            RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
 
         record = record[(record['Status'] == 'pending')]
         return record
@@ -50,8 +46,8 @@ class DownloadFundsAwkward:
             funds_code = self.pending.loc[index, 'Code']
             id_ = self.pending.loc[index, 'id']
 
-            print(
-                f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n当前股票：{funds_name},{funds_code};')
+            print(f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n'
+                  f'当前股票：{funds_name},{funds_code};')
 
             try:
                 data = dle.funds_awkward(funds_code)
@@ -59,6 +55,7 @@ class DownloadFundsAwkward:
             except Exception as ex:
                 print(f'Dl EastMoney funds_awkward error: {ex}')
                 data = dle.funds_awkward_by_driver(funds_code)
+
             # todo 数据保存失败
             if data.shape[0]:
                 data['funds_name'] = funds_name
@@ -68,19 +65,15 @@ class DownloadFundsAwkward:
                 data = data[['stock_name', 'funds_name', 'funds_code', 'Date']]
                 aw.append_fundsAwkward(data)
 
-                database = RecordStock.db
-                tb = RecordStock.table_record_download_top500
-                sql = f'''update {database}.{tb} set Status = 'success' where id = '{id_}';'''
+                sql = f'''Status = 'success' where id = '{id_}';'''
                 print(f'{funds_name} data download success;\n')
 
             else:
-                database = RecordStock.db
-                tb = RecordStock.table_record_download_top500
-                sql = f'''update {database}.{tb} set Status = 'failed' where id = '%s';'''
+                sql = f'''Status = 'failed' where id = '%s';'''
                 print(f'{funds_name} data download failed;\n')
 
             params = (id_,)
-            aw.awkward_execute_sql(sql=sql, params=params)
+            RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
 
             num += 1
             time.sleep(5)

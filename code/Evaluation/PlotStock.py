@@ -84,11 +84,9 @@ def board_trends(code: str):
 
 
 def data_stock_pool(name: str):
-    db = StockPoolData.db_pool
-    tb = StockPoolData.tb_pool
-    sql = f'''SELECT * FROM {db}.{tb} where name = '{name}';'''
-    params = (db, tb, name)
-    data = StockPoolData.pool_execute_sql(sql,params)
+    sql = f'''where name = '{name}';'''
+    params = (name, )
+    data = StockPoolData.set_table_to_pool(sql, params)
 
     return data
 
@@ -167,7 +165,6 @@ class PlotBoardData:
         ax.legend(loc='upper left')
 
     def plot_north_funds(self, ax):
-
         data, score = funds_trends(self.codeB)
 
         if data.shape[0]:

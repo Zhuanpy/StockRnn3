@@ -453,12 +453,11 @@ class TrainingDataCalculate(ModelData):
 
             # 筛选数据并加载旧数据
             self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
-            import sqlalchemy
-
+            from sqlalchemy.exc import IntegrityError
             try:
                 StockData15m.append_15m(data=self.data_15m, code_=self.stock_code)
 
-            except sqlalchemy.exc.IntegrityError:
+            except IntegrityError:
                 old = StockData15m.load_15m(self.stock_code)
                 last_date = old.iloc[-1]['date']
                 new = self.data_15m[self.data_15m['date'] > last_date]

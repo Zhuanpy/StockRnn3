@@ -38,7 +38,9 @@ class EvaluateAllTrend:
         for day_ in dates:
             multiprocessing_count_pool(day_)
             multiprocessing_count_board(day_)
-            PoolCount.count_trend()
+
+            my_count = PoolCount()
+            my_count.count_trend()
             print(f'日期{day_}完成;')
 
 

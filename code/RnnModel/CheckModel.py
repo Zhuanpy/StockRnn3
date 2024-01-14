@@ -8,13 +8,13 @@ import multiprocessing
 from code.Evaluation.CountPool import PoolCount
 from Rnn_utils import reset_id_time, reset_record_time, date_range
 import logging
+
 plt.rcParams['font.sans-serif'] = ['FangSong']
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
 
 class StockEvaluator:
-
     DB_RNN = LoadRnnModel.db_rnn
     TB_TRAIN_RECORD = LoadRnnModel.tb_train_record
 
@@ -33,7 +33,7 @@ class StockEvaluator:
         check_date = pd.Timestamp('now').date()
 
         try:
-            run = PredictionCommon(stock=stock_code,month_parsers=self.month, monitor=False, check_date=self.day)
+            run = PredictionCommon(stock=stock_code, month_parsers=self.month, monitor=False, check_date=self.day)
             run.single_stock()
 
             if self.check_model:
@@ -48,7 +48,7 @@ class StockEvaluator:
     def update_model_check_status(self, record_id, check_date, status):
         sql = f''' ModelCheckTiming = %s, ModelCheck = %s, ModelError = %s, ModelCheckTiming = '%s' WHERE id = %s; '''
         parser = (pd.Timestamp.now(), status, status, check_date, record_id)
-        LoadRnnModel.rnn_set_table_train_record(sql, parser)
+        LoadRnnModel.set_table_train_record(sql, parser)
 
     def run_evaluation(self):
         count = 0
@@ -59,7 +59,6 @@ class StockEvaluator:
 
 
 def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
-
     count = 0
 
     for index in range(_num, num_):
@@ -79,34 +78,30 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
             run.single_stock()
 
             if check_model:
-
                 sql2 = f''' ModelCheckTiming = '%s', ModelCheck = 'success', 
                 ModelError = 'success', ModelCheckTiming = '%s' where id=%s; '''
 
                 parser = (pd.Timestamp.now(), check_date, id_)
-                LoadRnnModel.rnn_set_table_train_record(sql2, parser)
+                LoadRnnModel.set_table_train_record(sql2, parser)
 
         except Exception as ex:
 
             print(f'Error: {ex}')
 
             if check_model:
-
                 sql2 = f''' ModelCheck = 'error', ModelError = 'error',
                 ModelCheckTiming = '{check_date}' where id={id_};'''
 
                 parser = (db, tb, check_date, id_)
-                LoadRnnModel.rnn_set_table_train_record(sql2, parser)
+                LoadRnnModel.set_table_train_record(sql2, parser)
 
         count += 1
 
 
 def multiprocessing_count_pool(day_, month_parsers='2022-02', check_model=False):
-
     data = StockPoolData.load_StockPool()
 
     if not data.empty:
-
         shape_ = data.shape[0]
 
         print(f'处理日期{day_}， 处理个数：{shape_}')

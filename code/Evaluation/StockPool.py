@@ -8,6 +8,9 @@ from code.parsers.BollingerParser import *
 from matplotlib import pyplot as plt
 from code.RnnModel.RnnRunModel import PredictionCommon
 from code.TrendDistinguish.TrendDistinguishRunModel import TrendDistinguishModel
+
+from sqlalchemy.exc import IntegrityError
+
 from root_ import file_root
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -39,10 +42,9 @@ def ScoreCycleAmplitude():
 
             LA = round(AmpMean / LengthMean * 100, 3)
 
-            sql = f'''update %s.%s 
-            set CycleAmplitude = '%s' where id = %s; '''
-            params = (StockPoolData.db_pool, StockPoolData.tb_pool, LA, id_)
-            StockPoolData.pool_execute_sql(sql, params)
+            sql = f'''CycleAmplitude = '%s' where id = %s; '''
+            params = (LA, id_)
+            StockPoolData.set_table_to_pool(sql, params)
 
             print(f'{stock_code}: {LA}')
 
@@ -165,20 +167,16 @@ class ScoreStockPool(TrendDistinguishModel):
             self.codeB = poolB.loc[index, 'code']
             self.nameB = poolB.loc[index, 'name']
             board_id = poolB.loc[index, 'id']
-            # print(self.codeB, self.nameB)
 
             self.dataB, self.scoreB = self.board_trends(self.codeB)
             self.dataF, self.scoreF = self.funds_trends(self.codeB)
 
             # 更新股票池  板块数据
             board_date = self.dataB.iloc[-1]['date'].date()
-            sql2 = f'''update %s.%s set 
-                    Trends = '%s',
-                    RecordDate = '%s'
-                    where id = %s; '''
+            sql2 = f''' Trends = '%s', RecordDate = '%s' where id = %s; '''
 
-            params = (StockPoolData.db_pool, StockPoolData.tb_board, self.scoreB, board_date, board_id)
-            StockPoolData.pool_execute_sql(sql2, params)
+            params = (self.scoreB, board_date, board_id)
+            StockPoolData.set_table_to_board(sql2, params)
 
             # 更新数据
             industry_data = pool[pool['IndustryCode'] == self.codeB]
@@ -199,49 +197,35 @@ class ScoreStockPool(TrendDistinguishModel):
             fig, ax = plt.subplots(2, 1, figsize=(9, 7), dpi=120)
 
             if self.dataB.shape[0] and self.dataF.shape[0]:
-                sql1 = f'''update %s.%s set 
-                BoardBoll= '%s',
-                BoardMoney= '%s',
-                RecordDate = '%s' where %s; '''
+                sql1 = f''' BoardBoll= '%s', BoardMoney= '%s', RecordDate = '%s' where %s; '''
 
-                params = (StockPoolData.db_pool, StockPoolData.tb_pool, self.scoreB.self.scoreF, current, where)
+                params = (self.scoreB.self.scoreF, current, where)
                 # 更新股票池 个股对应板块数据
-                StockPoolData.pool_execute_sql(sql1, params)
+                StockPoolData.set_table_to_pool(sql1, params)
 
                 self.plotB(ax[0])
                 self.plotF(ax[1])
 
             if self.dataB.shape[0] and not self.dataF.shape[0]:
                 # 更新股票池 个股对应板块数据
-                sql1 = f'''update update %s.%s set 
-                BoardBoll= '%s',
-                BoardMoney= null,
-                RecordDate = '%s' where %s; '''
+                sql1 = f''' BoardBoll= '%s', BoardMoney= null, RecordDate = '%s' where %s; '''
 
-                params = (StockPoolData.db_pool, StockPoolData.tb_pool, self.scoreB, current, where)
-                StockPoolData.pool_execute_sql(sql1, params)
+                params = (self.scoreB, current, where)
+                StockPoolData.set_table_to_pool(sql1, params)
 
                 # 更新股票池  板块数据
                 board_date = self.dataB.iloc[-1]['date'].date()
 
-                sql2 = f'''update  %s.%s set 
-                        Trends =  '%s',
-                        RecordDate =  '%s',
-                        where id =  '%s'; '''
-
-                params = (StockPoolData.db_pool, StockPoolData.tb_board, self.scoreB, board_date, board_id)
-                StockPoolData.pool_execute_sql(sql2, params)
+                sql2 = f''' Trends =  '%s', RecordDate =  '%s', where id =  '%s'; '''
+                params = (self.scoreB, board_date, board_id)
+                StockPoolData.set_table_to_board(sql2, params)
 
                 self.plotB(ax[0])
 
             if not self.dataB.shape[0] and self.dataF.shape[0]:
-                sql = f'''update update  %s.%s set 
-                BoardBoll= null,
-                BoardMoney= '%s',
-                RecordDate = '%s' where %s; '''
-
-                params = (StockPoolData.db_pool, StockPoolData.tb_pool, self.scoreF, current, where)
-                StockPoolData.pool_execute_sql(sql, params)
+                sql = f''' BoardBoll= null, BoardMoney= '%s', RecordDate = '%s' where %s; '''
+                params = (self.scoreF, current, where)
+                StockPoolData.set_table_to_pool(sql, params)
 
                 self.plotF(ax[0])
 
@@ -277,10 +261,10 @@ class ScoreStockPool(TrendDistinguishModel):
 
             ss = bb[bb['stock_name'] == stock_name].iloc[0]['TrendScore']
 
-            sql = f'''update %s.%s set FundsAwkward = '%s' where id = %s; '''
+            sql = f'''FundsAwkward = '%s' where id = %s; '''
 
-            params = (StockPoolData.db_pool, StockPoolData.tb_pool, ss, id_)
-            StockPoolData.pool_execute_sql(sql, params)
+            params = (ss, id_)
+            StockPoolData.set_table_to_pool(sql, params)
 
         print(f'Process Score Funds Awkward')
 
@@ -341,31 +325,28 @@ class UpdateTradeHistory:
         self.tradeReal = data.loc[index, '真实操作']
 
     def update_record(self, method='模拟'):
-        sql = f''' update %s.%s set 
-        成交日期 = '%s', 成交时间 = '%s', 证券代码 ='%s', 证券名称 = '%s',
+        sql = f''' 成交日期 = '%s', 成交时间 = '%s', 证券代码 ='%s', 证券名称 = '%s',
         操作 = '%s', 信号编号 = '%s', 成交数量 = '%s', 成交均价 = '%s',
         止损价 = '%s', 成交金额 = '%s', 股票余额 = '%s', 合同编号 = '%s',
         手续费 = '%s', 印花税 = '%s', 其他杂费 = '%s', 发生金额 = '%s',
         交易市场 ='%s', 股东帐户 = '%s', 撤单数量 ='%s', 真实操作 ='%s',
         where 成交编号 = '%s'; '''
 
-        params = (StockPoolData.db_pool, StockPoolData.tb_trade_record,
-                  self.tradeDate, self.tradeTime, self.code, self.name,
+        params = (self.tradeDate, self.tradeTime, self.code, self.name,
                   self.tradeAction, self.signalTimes_, self.tradeNum, self.tradePrice,
                   self.stopLoss_, self.tradeAmount, self.tradeAmount_, self.tradeContract,
                   self.tradeFee1, self.tradeFee2, self.tradeFee3, self.tradeFee4,
                   self.tradeMarket, self.tradeAccount, self.tradeCancel, self.tradeReal,
                   self.tradeNo,)
 
-        StockPoolData.pool_execute_sql(sql, params)
+        StockPoolData.set_table_trade_record(sql, params)
         print(f'{method}账户股票：{self.name} 更新成功;')
 
     def update_stock_pool(self):
-        sql = f''' update %s.%s 
-        set StopLoss = '%s' where id = '%s'; '''
+        sql = f''' set StopLoss = '%s' where id = '%s'; '''
 
-        params = (StockPoolData.db_pool, StockPoolData.tb_pool, self.stopLoss_, self.id_)
-        StockPoolData.pool_execute_sql(sql, params)
+        params = (self.stopLoss_, self.id_)
+        StockPoolData.set_table_to_pool(sql, params)
 
 
 class UpdateData:
@@ -406,11 +387,9 @@ class UpdateData:
         if data.shape[0]:
             for i in data.index:
                 id_ = data.loc[i, 'id']
-                sql = f'''update %s.%s set Position = 0, 
-                TradeMethod = 0, PositionNum = 0 where id = %s;'''
-
+                sql = f'''Position = 0, TradeMethod = 0, PositionNum = 0 where id = %s;'''
                 params = (StockPoolData.db_pool, StockPoolData.tb_pool, id_)
-                StockPoolData.pool_execute_sql(sql, params)
+                StockPoolData.set_table_to_pool(sql, params)
 
         print('重置模拟持仓成功;')
 
@@ -440,13 +419,9 @@ class UpdateFakeStock(UpdateTradeHistory):  # 更新模拟账户交易数据
 
                 import pymysql
                 try:
-                    sql = f'''update %s.%s set 
-                    Position = 1, 
-                    TradeMethod = 1,
-                    PositionNum = %s where id = %s;'''
-
-                    params = (StockPoolData.db_pool, StockPoolData.tb_pool, num_position, id_)
-                    StockPoolData.pool_execute_sql(sql, params)
+                    sql = f''' Position = 1, TradeMethod = 1, PositionNum = %s where id = %s;'''
+                    params = (num_position, id_)
+                    StockPoolData.set_table_to_pool(sql, params)
                     print(f'{self.name}模拟持仓更新成功;')
 
                 except pymysql.err.OperationalError:
@@ -568,14 +543,9 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
             if pool.shape[0]:
                 for index in pool.index:
                     id_ = pool.loc[index, 'id']
-
-                    sql = f'''update %s.%s set 
-                    Position = 0, 
-                    TradeMethod = 0,
-                    PositionNum = 0 where id = %s;'''
-
-                    params = (StockPoolData.db_pool, StockPoolData.tb_pool, id_)
-                    StockPoolData.pool_execute_sql(sql, params)
+                    sql = f''' Position = 0, TradeMethod = 0, PositionNum = 0 where id = %s;'''
+                    params = (id_,)
+                    StockPoolData.set_table_to_pool(sql, params)
 
             position = pd.read_excel(f'{self.root}/data/output/stock_pool/{file_}.xls', sheet_name='table')
             position = position.dropna(subset=['股票余额'])
@@ -586,13 +556,9 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
                     stock_ = position.loc[index, '证券名称']
                     name, code, id_ = Stocks(stock_)
                     nums = position.loc[index, '股票余额']
-                    sql = f'''update %s.%s set 
-                    Position = 1, 
-                    TradeMethod = 2, 
-                    PositionNum = %s where id = %s;'''
-
-                    params = (StockPoolData.db_pool, StockPoolData.tb_pool, nums, id_)
-                    StockPoolData.pool_execute_sql(sql, params)
+                    sql = f''' Position = 1, TradeMethod = 2, PositionNum = %s where id = %s;'''
+                    params = (nums, id_)
+                    StockPoolData.set_table_to_pool(sql, params)
 
             title = '更新成功'
             message = '实盘持仓更新成功;'
@@ -655,14 +621,14 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
                 data.loc[index, '信号编号'] = self.signalTimes_
                 data.loc[index, '成交数量'] = abs(data.loc[index, '成交数量'])
 
-                import sqlalchemy
+
                 try:
                     new_ = data.loc[index:index, :]
                     StockPoolData.append_tradeRecord(new_)
 
                     print(f'实盘账户股票：{code_} 更新成功;')
 
-                except sqlalchemy.exc.IntegrityError:
+                except IntegrityError:
                     self.get_index_value(data, index)  # 获取 中的各个值；
                     self.update_record(method='实盘')  # 更新资料
 
