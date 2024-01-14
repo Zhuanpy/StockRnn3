@@ -137,22 +137,16 @@ class RMBuiltModel:
                     train = BuiltModel(stock_, self.months)
                     train.model_all()
 
-                    sql = f'''update %s.%s set 
-                    ModelCreate = 'success', 
-                    ModelCreateTiming = %s where id = %s;'''
+                    sql = f''' ModelCreate = 'success', ModelCreateTiming = %s where id = %s;'''
 
-                    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, current, id_)
+                    params = (current, id_)
 
                 except Exception as ex:
                     print(f'ModelCreate Error : {ex}')
+                    sql = f''' ModelCreate = 'error', ModelCreateTiming = '{current}' where id = '{id_}';'''
+                    params = (current, id_)
 
-                    sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set 
-                    ModelCreate = 'error', 
-                    ModelCreateTiming = '{current}' where id = '{id_}';'''
-
-                    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, current, id_)
-
-                LoadRnnModel.rnn_execute_sql(sql, params)
+                LoadRnnModel.set_table_train_record(sql, params)
 
 
 if __name__ == '__main__':

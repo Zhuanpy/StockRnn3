@@ -46,16 +46,9 @@ class StockEvaluator:
                 self.update_model_check_status(record_id, check_date, 'error')
 
     def update_model_check_status(self, record_id, check_date, status):
-
-        sql = f'''
-            UPDATE %s.%s SET 
-            ModelCheckTiming = %s,
-            ModelCheck = %s,
-            ModelError = %s,
-            ModelCheckTiming = '%s' WHERE id=%s;
-        '''
-        parser = (self.DB_RNN, self.TB_TRAIN_RECORD, pd.Timestamp.now(), status, status, check_date, record_id)
-        LoadRnnModel.rnn_execute_sql(sql, parser)
+        sql = f''' ModelCheckTiming = %s, ModelCheck = %s, ModelError = %s, ModelCheckTiming = '%s' WHERE id = %s; '''
+        parser = (pd.Timestamp.now(), status, status, check_date, record_id)
+        LoadRnnModel.rnn_set_table_train_record(sql, parser)
 
     def run_evaluation(self):
         count = 0
@@ -87,14 +80,11 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
 
             if check_model:
 
-                sql2 = f'''update %s.%s set 
-                ModelCheckTiming = '%s',
-                ModelCheck = 'success',
-                ModelError = 'success',
-                ModelCheckTiming = '%s' where id=%s;'''
+                sql2 = f''' ModelCheckTiming = '%s', ModelCheck = 'success', 
+                ModelError = 'success', ModelCheckTiming = '%s' where id=%s; '''
 
-                parser = (db, tb, pd.Timestamp.now(), check_date, id_)
-                LoadRnnModel.rnn_execute_sql(sql2, parser)
+                parser = (pd.Timestamp.now(), check_date, id_)
+                LoadRnnModel.rnn_set_table_train_record(sql2, parser)
 
         except Exception as ex:
 
@@ -102,13 +92,11 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
 
             if check_model:
 
-                sql2 = f'''update {db}.{tb} set 
-                ModelCheck = 'error',
-                ModelError = 'error',
+                sql2 = f''' ModelCheck = 'error', ModelError = 'error',
                 ModelCheckTiming = '{check_date}' where id={id_};'''
 
                 parser = (db, tb, check_date, id_)
-                LoadRnnModel.rnn_execute_sql(sql2, parser)
+                LoadRnnModel.rnn_set_table_train_record(sql2, parser)
 
         count += 1
 
