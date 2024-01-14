@@ -57,10 +57,16 @@ class DownloadFundsAwkward:
                 data = dle.funds_awkward(funds_code)
 
             except Exception as ex:
-                data = dle.funds_awkward_by_driver(funds_code)
+
+                try:
+                    data = dle.funds_awkward_by_driver(funds_code)
 
                 info_text = f'Dl EastMoney funds_awkward error: {ex}'
                 logging.info(info_text)
+
+                except Exception as ex:
+                    data = None
+                    print(f'Dl EastMoney funds_awkward error: {ex}')
 
             if data.empty:
                 sql = f''' `Status` = 'failed' where id = %s;'''

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from DlJuQuan import DownloadData as dlj
-from DlEastMoney import DownloadData as dle
+from DlJuQuan import DownloadData as Download_juquan
+from DlEastMoney import DownloadData as Download_east
 from code.MySql.LoadMysql import LoadFundsAwkward, LoadBasicInform, StockData1m, LoadNortFunds
 import pandas as pd
 import time
@@ -12,7 +12,7 @@ pd.set_option('display.width', 5000)
 def download_1m(stock, code, days):
 
     try:
-        df = dle.stock_1m_days(code, days=days)
+        df = Download_east.stock_1m_days(code, days=days)
 
     except Exception as ex:
         # todo 引入日志
@@ -77,7 +77,8 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                     continue
 
                 try:
-                    data1m = dlj.download_history_data(code, frequency='1m', fq_value='不复权', start_date=str(start_), end_date=str(end_))
+                    data1m = Download_juquan.download_history_data(code, frequency='1m', fq_value='不复权',
+                                                                   start_date=str(start_), end_date=str(end_))
 
                     if not data1m.shape[0]:
                         continue
@@ -96,10 +97,9 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
                         StockData1m.replace_1m(code_=code, year_=str(year_), data=data1m)
 
                     # 更新参数
-                    sql = f'''update %s.%s. set 
-                    StartDate = '%s.' where id = %s.;'''
-                    params = (LoadBasicInform.db_basic, LoadBasicInform.tb_minute, start_new, id_)
-                    LoadBasicInform.basic_execute_sql(sql=sql, params=params)
+                    sql = f''' StartDate = '%s.' where id = %s.;'''
+                    params = (start_new, id_)
+                    LoadBasicInform.set_table_minute_record(sql=sql, params=params)
 
                     print(f'下载成功: {name}, {code} 1m 数据;')
                     time.sleep(10)
@@ -110,12 +110,10 @@ def collect_all_1m_data():  # 补充 完整的 1m_data 数据库;
 
                     if str(ex) == 'Cannot convert non-finite values (NA or inf) to integer':  # 数据下载错误时
 
-                        sql = f'''update %s.%s set 
-                        StartDate = '1990-01-01', 
-                        EndDate = '2050-01-01', 
-                        RecordDate = '2050-01-01' where id = {id_};'''
-                        params = (LoadBasicInform.db_basic, LoadBasicInform.tb_minute)
-                        LoadBasicInform.basic_execute_sql(sql=sql, params=params)
+                        sql = f''' StartDate = '1990-01-01', EndDate = '2050-01-01', 
+                        RecordDate = '2050-01-01' where id = %s;'''
+                        params = (id_,)
+                        LoadBasicInform.set_table_minute_record(sql=sql, params=params)
 
                     over_ = str(ex).split('，')[0]
 
@@ -141,7 +139,7 @@ def collect_all_funds_to_sectors():
 
     for d in board:
         d = d.strftime('%Y-%m-%d')
-        dl = dle.funds_to_sectors(d)  # 下载数据
+        dl = Download_east.funds_to_sectors(d)  # 下载数据
 
         if dl.empty:
             continue
