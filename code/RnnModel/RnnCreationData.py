@@ -550,10 +550,10 @@ class RMTrainingData:
         """更新训练表格记录"""
         ids = tuple(records.id)
 
-        sql = f'''update %s.%s set ParserMonth = '%s', ModelData ='pending' where id in %s;'''
+        sql = f'''set ParserMonth = '%s', ModelData ='pending' where id in %s;'''
 
-        params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, self.month, ids)
-        LoadRnnModel.rnn_execute_sql(sql, params)
+        params = (self.month, ids)
+        LoadRnnModel.set_table_train_record(sql, params)
 
     def all_stock(self):
         load = LoadRnnModel.load_train_record()
@@ -589,21 +589,16 @@ class RMTrainingData:
                 run = TrainingDataCalculate(stock_, self.month, self.start_date)
                 run.calculation_read_from_sql()
 
-                sql = f'''update %s.%s set 
-                ModelData = 'success',
-                ModelDataTiming = '%s' where id = '%s'; '''
+                sql = f'''ModelData = 'success', ModelDataTiming = '%s' where id = '%s'; '''
 
-                params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, current, id_)
-                LoadRnnModel.rnn_execute_sql(sql, params)
+                params = (current, id_)
+                LoadRnnModel.set_table_train_record(sql, params)
 
             except Exception as ex:
                 print(f'Model Data Create Error: {ex}')
-
-                sql = f'''update {LoadRnnModel.db_rnn}.{LoadRnnModel.tb_train_record} set ModelData = 'error', 
-                ModelDataTiming = NULL where id = {id_}; '''
-
+                sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = {id_}; '''
                 params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, id_)
-                LoadRnnModel.rnn_execute_sql(sql, params)
+                LoadRnnModel.set_table_train_record(sql, params)
 
         return True
 

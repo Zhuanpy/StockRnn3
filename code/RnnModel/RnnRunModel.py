@@ -236,11 +236,10 @@ class ModelData(Parsers):
 
         t15m = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].date()
 
-        sql = f'''update %s.%s 
-        set Time15m = '%s' where id = %s;'''
+        sql = f''' set Time15m = '%s' where id = %s;'''
 
-        parser = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record, t15m, self.stock_id)
-        LoadRnnModel.rnn_execute_sql(sql, parser)
+        parser = (t15m, self.stock_id)
+        LoadRnnModel.set_table_run_record(sql, parser)
 
         self.data_15m = self.data_15m.set_index('date', drop=True)
 
@@ -447,19 +446,17 @@ class UpdateData(Parsers):
         StockPoolData.pool_execute_sql(sql, parser)
 
     def update_RecordRun(self):
-        sql1 = f'''update %s.%s set 
-        Trends = '%s', SignalStartTime = '%s', PredictCycleLength = '%s', RealCycleLength = '%s',
+        sql1 = f''' Trends = '%s', SignalStartTime = '%s', PredictCycleLength = '%s', RealCycleLength = '%s',
         PredictCycleChange = '%s', PredictCyclePrice = '%s', RealCycleChange = '%s', PredictBarChange = '%s',
         RealBarChange = '%s', PredictBarVolume = '%s', RealBarVolume = '%s', ScoreTrends = '%s',
         TradePoint = '%s', TimeRunBar = '%s', RenewDate = '%s', where id = '%s','''
 
-        parsers = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record,
-                   self.signalValue, self.signalStartTime, self.predict_length, self.real_length,
+        parsers = (self.signalValue, self.signalStartTime, self.predict_length, self.real_length,
                    self.predict_CycleChange, self.predict_CyclePrice, self.real_CycleChange, self.predict_bar_change,
                    self.real_bar_change, self.predict_BarVolume, self.real_BarVolume, self.trend_score,
                    self.tradAction, self.trade_timing, self.current, self.stock_id)
 
-        LoadRnnModel.rnn_execute_sql(sql1, parsers)
+        LoadRnnModel.set_table_run_record(sql1, parsers)
 
     def update_Data15m(self):
         sql = f'''update %s.`%s` set 

@@ -176,7 +176,13 @@ class LoadRnnModel:
         return data
 
     @classmethod
-    def rnn_execute_sql(cls, sql: str, params: tuple):
+    def set_table_train_record(cls, sql: str, params: tuple):
+        sql = f'UPDATE {cls.db_rnn}.{cls.tb_train_record} SET {sql}'
+        execute_sql(cls.db_rnn, sql, params)
+
+    @classmethod
+    def set_table_run_record(cls, sql: str, params: tuple):
+        sql = f'UPDATE {cls.db_rnn}.{cls.tb_run_record} SET {sql}'
         execute_sql(cls.db_rnn, sql, params)
 
 
