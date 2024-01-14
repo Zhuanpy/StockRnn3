@@ -2,6 +2,7 @@ import multiprocessing
 import time
 import pandas as pd
 from code.MySql.LoadMysql import LoadFundsAwkward as aw
+from code.MySql.LoadMysql import RecordStock
 from code.MySql.LoadMysql import StockPoolData as pl
 from DlEastMoney import DownloadData as dle
 
@@ -14,30 +15,31 @@ class DownloadFundsAwkward:
     # 2.下载此基金数据重仓前10的股票数据。
     """
 
-    def __init__(self, Dl_Date):
+    def __init__(self, download_date):
 
-        self.DlDate = pd.to_datetime(Dl_Date).date()
+        self.download_date = pd.to_datetime(download_date).date()
         self.pending = None
 
     def pending_data(self):
 
-        record = aw.load_top500()
+        record = RecordStock.load_record_download_top500fundspositionstock()
+        record['Date'] = pd.to_datetime(record['Date'])  # .date
+        record_date = record.loc[0, 'Date'].date()
 
-        pending = record[(record['Date'] == self.DlDate)]
+        if record_date != self.download_date:
+            record['Date'] = self.download_date
+            record['Status'] = 'pending'
 
-        if not pending.shape[0]:
-            st = 'pending'
-            record['Date'] = self.DlDate
-            record['Status'] = st
-            id_ = record.sort_values(by=['id']).iloc[0]['id']
+            database = RecordStock.db
+            tb = RecordStock.table_record_download_top500
+            sql = f"UPDATE `{database}`.`{tb}` SET `Status` = 'pending', `Date` = %s;"
 
-            sql = f''' update %s.%s
-            set Date = '%s', Status='%s' where id >= '%s';'''
-            params = (aw.db_funds_awkward, aw.tb_funds_500, self.DlDate, st, id_)
-            aw.awkward_execute_sql(sql=sql, params=params, )
+            # 更新表格数据
+            params = (self.download_date,)
+            RecordStock.update_record_download_top500fundspositionstock(sql, params)
 
-        pending = record[(record['Date'] == self.DlDate) & (record['Status'] != 'success')].reset_index(drop=True)
-        return pending
+        record = record[(record['Status'] == 'pending')]
+        return record
 
     def awkward_top10(self, start: int, end: int):
 
@@ -47,34 +49,37 @@ class DownloadFundsAwkward:
             funds_name = self.pending.loc[index, 'Name']
             funds_code = self.pending.loc[index, 'Code']
             id_ = self.pending.loc[index, 'id']
-            select = self.pending.loc[index, 'Selection']
 
             print(
                 f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n当前股票：{funds_name},{funds_code};')
+
             try:
                 data = dle.funds_awkward(funds_code)
 
             except Exception as ex:
                 print(f'Dl EastMoney funds_awkward error: {ex}')
                 data = dle.funds_awkward_by_driver(funds_code)
-
+            # todo 数据保存失败
             if data.shape[0]:
                 data['funds_name'] = funds_name
                 data['funds_code'] = funds_code
-                data['Date'] = self.DlDate
-                data['Selection'] = select
+                data['Date'] = self.download_date
 
-                data = data[['stock_name', 'funds_name', 'funds_code', 'Date', 'Selection']]
+                data = data[['stock_name', 'funds_name', 'funds_code', 'Date']]
                 aw.append_fundsAwkward(data)
 
-                sql = f'''update {aw.db_funds_awkward}.{aw.tb_funds_500} set Status = 'success' where id = '{id_}';'''
+                database = RecordStock.db
+                tb = RecordStock.table_record_download_top500
+                sql = f'''update {database}.{tb} set Status = 'success' where id = '{id_}';'''
                 print(f'{funds_name} data download success;\n')
 
             else:
-                sql = f'''update %s.%s set Status = 'failed' where id = '%s';'''
+                database = RecordStock.db
+                tb = RecordStock.table_record_download_top500
+                sql = f'''update {database}.{tb} set Status = 'failed' where id = '%s';'''
                 print(f'{funds_name} data download failed;\n')
 
-            params = (aw.db_funds_awkward, aw.tb_funds_500, id_)
+            params = (id_,)
             aw.awkward_execute_sql(sql=sql, params=params)
 
             num += 1
@@ -83,9 +88,10 @@ class DownloadFundsAwkward:
     def multi_processing(self):
         self.pending = self.pending_data()
         print(self.pending.tail())
+        # exit()
         indexes = self.pending.shape[0]
-        if indexes:
 
+        if indexes:
             if indexes > 3:
                 index1 = indexes // 3
                 index2 = indexes // 3 * 2
@@ -192,6 +198,8 @@ class AnalysisFundsAwkward:
 
 
 if __name__ == '__main__':
-    DlDate = '2022-04-09'
-    aly = AnalysisFundsAwkward(dl_date=DlDate)
-    aly.normalization_last()
+    DlDate = '2024-01-14'
+    # aly = AnalysisFundsAwkward(dl_date=DlDate)
+    # aly.normalization_last()
+    download = DownloadFundsAwkward(DlDate)
+    download.multi_processing()

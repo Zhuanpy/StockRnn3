@@ -197,12 +197,6 @@ class LoadFundsAwkward:
         Alc.pd_append(data, cls.db_funds_awkward, cls.tb_awkwardNormalization)
 
     @classmethod
-    def load_top500(cls):
-        df = Alc.pd_read(cls.db_funds_awkward, cls.tb_funds_500)
-        df['Date'] = pd.to_datetime(df['Date'])
-        return df
-
-    @classmethod
     def load_fundsAwkward(cls):
         df = Alc.pd_read(cls.db_funds_awkward, cls.tb_fundsAwkward)
         df['Date'] = pd.to_datetime(df['Date'])
@@ -256,6 +250,7 @@ class LoadBasic:
 class RecordStock:
     db = 'stockrecord'
     table_record_download_1m_data = 'recorddownload1mdata'
+    table_record_download_top500 = 'record_download_top500fundspositionstock'
 
     @classmethod
     def load_record_download_1m_data(cls):
@@ -266,12 +261,23 @@ class RecordStock:
     def update_record_download_1m_data_table(cls, sql: str, params: tuple):
         execute_sql(cls.db, sql, params)
 
+    @classmethod
+    def load_record_download_top500fundspositionstock(cls):
+        df = Alc.pd_read(cls.db, cls.table_record_download_top500)
+        return df
+
+    @classmethod
+    def update_record_download_top500fundspositionstock(cls, sql: str, params: tuple):
+        execute_sql(cls.db, sql, params)
+        # return True
+
 
 if __name__ == '__main__':
-    lf = LoadBasicInform()
-    data_ = lf.load_minute()
-    data_ = data_[data_['EsDownload'] == 'success'].reset_index(drop=True)
-
-    # alc.pd_replace(data, database='stockrecord', table='recorddownload1mdata')
-    # data = data.drop(columns=['TxdMarket'])
+    # lf = LoadBasicInform()
+    data_ = LoadFundsAwkward.load_top500()
+    # record_download_top500fundspositionstock
+    data_ = data_[['id', 'Name', 'Code', 'Status', 'Date']]
+    database = 'stockrecord'
+    table = 'record_download_top500fundspositionstock'
+    Alc.pd_append(data_, database, table)
     print(data_)
