@@ -162,6 +162,7 @@ class LoadNortFunds:
 
 class LoadRnnModel:
     db_rnn = 'rnn_model'
+
     tb_train_record = 'trainrecord'
     tb_run_record = 'runrecord'
 
@@ -187,7 +188,9 @@ class LoadRnnModel:
 
 
 class LoadFundsAwkward:
+
     db_funds_awkward = 'funds_awkward_stock'
+
     tb_funds_500 = 'topfunds500'
     tb_awkwardNormalization = 'awkward_normalization'
     tb_fundsAwkward = 'fundsawkward'
@@ -213,12 +216,14 @@ class LoadFundsAwkward:
         Alc.pd_append(data, cls.db_funds_awkward, cls.tb_fundsAwkward)
 
     @classmethod
-    def awkward_execute_sql(cls, sql, params: tuple):
+    def set_tabel_fundsAwkwardl(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_funds_awkward}.{cls.tb_fundsAwkward} SET {sql}'
         execute_sql(cls.db_funds_awkward, sql, params)
 
 
 class LoadBasicInform:
     db_basic = 'stock_basic_information'
+
     tb_minute = 'record_stock_minute'
     tb_record_north_funds = 'recordnorthfunds'
 
@@ -237,14 +242,19 @@ class LoadBasicInform:
         Alc.pd_append(data, cls.db_basic, cls.tb_record_north_funds)
 
     @classmethod
-    def basic_execute_sql(cls, sql, params: tuple):
+    def set_table_record_north_funds(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_basic}.{cls.tb_record_north_funds} SET {sql}'
+        execute_sql(cls.db_basic, sql, params)
+
+    @classmethod
+    def set_table_minute_record(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_basic}.{cls.tb_minute} SET {sql}'
         execute_sql(cls.db_basic, sql, params)
 
 
 class LoadBasic:
-    # stockbasic.basic
-
     db = 'stockbasic'
+
     tb_basic = 'basic'
 
     @classmethod
@@ -255,6 +265,7 @@ class LoadBasic:
 
 class RecordStock:
     db = 'stockrecord'
+
     table_record_download_1m_data = 'recorddownload1mdata'
     table_record_download_top500 = 'record_download_top500fundspositionstock'
 
@@ -264,7 +275,8 @@ class RecordStock:
         return df
 
     @classmethod
-    def update_record_download_1m_data_table(cls, sql: str, params: tuple):
+    def set_table_record_download_1m_data(cls, sql: str, params: tuple):
+        sql = f'UPDATE {cls.db}.{cls.table_record_download_1m_data} SET {sql}'
         execute_sql(cls.db, sql, params)
 
     @classmethod
