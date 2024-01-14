@@ -11,20 +11,27 @@ class StockData15m:
     db_15m = 'stock_15m_data'
 
     @classmethod
-    def load_15m(cls, code_: str):
-        df = Alc.pd_read(cls.db_15m, code_)
+    def load_15m(cls, stock_code: str):
+        df = Alc.pd_read(cls.db_15m, stock_code)
         return df
 
     @classmethod
-    def append_15m(cls, code_: str, data):
-        Alc.pd_append(data, cls.db_15m, code_)
+    def append_15m(cls, stock_code: str, data):
+        Alc.pd_append(data, cls.db_15m, stock_code)
 
     @classmethod
-    def replace_15m(cls, code_: str, data):
-        Alc.pd_replace(data, cls.db_15m, code_)
+    def replace_15m(cls, stock_code: str, data):
+        Alc.pd_replace(data, cls.db_15m, stock_code)
 
     @classmethod
-    def data15m_execute_sql(cls, sql: str, params: tuple):
+    def set_data_15m_data(cls, stock_code: str, sql: str, params: tuple):
+        sql = f'UPDATE {cls.db_15m}.{stock_code} SET {sql}'
+        execute_sql(cls.db_15m, sql, params)
+
+    @classmethod
+    def delete_data_from_15m_data(cls, stock_code: str, sql: str, params: tuple):
+        # f'''delete from %s.`%s` where date='%s';'''
+        sql = f'delete from {cls.db_15m}.{stock_code} {sql};'
         execute_sql(cls.db_15m, sql, params)
 
 
@@ -200,7 +207,6 @@ class LoadRnnModel:
 
 
 class LoadFundsAwkward:
-
     db_funds_awkward = 'funds_awkward_stock'
 
     tb_funds_500 = 'topfunds500'
@@ -276,7 +282,6 @@ class LoadBasic:
 
 
 class RecordStock:
-
     db = 'stockrecord'
 
     table_record_download_1m_data = 'recorddownload1mdata'

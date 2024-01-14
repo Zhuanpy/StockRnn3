@@ -162,14 +162,14 @@ class ModelData(Parsers):
         end_date = self.data_15m.iloc[-1]['date']
 
         if _end_date < end_date and _end_date not in list(self.data_15m['date']):
-            sql2 = f'''delete from %s.`%s` where date='%s';'''
-            parser = (db, self.stock_code, _end_date)
-            StockData15m.data15m_execute_sql(sql2, parser)
+            sql2 = f'''where date='%s';'''  # '''delete from %s.`%s` where date='%s';'''
+            parser = (_end_date,)
+            StockData15m.delete_data_from_15m_data(self.stock_code, sql2, parser)
 
         new = self.data_15m[self.data_15m['date'] > _end_date]
 
         if not new.empty:
-            StockData15m.append_15m(data=new, code_=self.stock_code)
+            StockData15m.append_15m(data=new, stock_code=self.stock_code)
 
             signalTimes = self.data_15m[self.data_15m['date'] >= _end_date].iloc[0]['SignalTimes']
             _signalTimes = self.jsons['RecordEndSignalTimes']
@@ -186,13 +186,11 @@ class ModelData(Parsers):
                     sl = new_data.loc[index, 'Signal']
                     slc = new_data.loc[index, 'SignalChoice']
 
-                    sql3 = f'''update %s.`%s` set 
-                    SignalTimes = '%s',
-                    SignalStartTime = '%s',
+                    sql3 = f''' SignalTimes = '%s', SignalStartTime = '%s',
                     `Signal` = '%s', SignalChoice='%s' where date = '%s';'''
 
-                    parser = (db, self.stock_code, sts, stt, sl, slc, data_id)
-                    StockData15m.data15m_execute_sql(sql3, parser)
+                    parser = (sts, stt, sl, slc, data_id)
+                    StockData15m.set_data_15m_data(self.stock_code, sql3, parser)
 
                 # 保存 15m 数据 截止日期
                 date_ = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
@@ -434,8 +432,7 @@ class UpdateData(Parsers):
         sql = f''' close = '%s', ExpPrice = '%s', RnnModel= '%s', Trends= '%s', 
         ReTrend= '%s', TrendProbability= '%s', RecordDate= '%s' where id= %s; '''
 
-        parser = (self.close,
-                  self.ExpPrice, self.trend_score, self.trendValue,
+        parser = (self.close, self.ExpPrice, self.trend_score, self.trendValue,
                   self.reTrend, self.ScoreP, self.check_date, self.stock_id)
         StockPoolData.set_table_to_pool(sql, parser)
 
@@ -452,18 +449,16 @@ class UpdateData(Parsers):
 
         LoadRnnModel.set_table_run_record(sql1, parsers)
 
-    def update_Data15m(self):
-        sql = f'''update %s.`%s` set 
-        PredictCycleChange = '%s', PredictCyclePrice = '%s', PredictCycleLength = '%s', PredictBarChange = '%s',  
-        PredictBarPrice = '%s', PredictBarVolume = '%s', ScoreRnnModel = '%s', TradePoint = '%s',   
-        where date='%s';'''
+    def update_sql_15m_data(self):
+        sql = f''' PredictCycleChange = '%s', PredictCyclePrice = '%s', PredictCycleLength = '%s', 
+        PredictBarChange = '%s', PredictBarPrice = '%s', PredictBarVolume = '%s', ScoreRnnModel = '%s', 
+        TradePoint = '%s', where date='%s';'''
 
-        parsers = (StockData15m.db_15m, self.stock_code,
-                   self.predict_CycleChange, self.predict_CyclePrice, self.predict_length, self.predict_bar_change,
+        parsers = (self.predict_CycleChange, self.predict_CyclePrice, self.predict_length, self.predict_bar_change,
                    self.predict_bar_price, self.predict_BarVolume, self.trend_score, self.tradAction,
                    self.trade_timing)
 
-        StockData15m.data15m_execute_sql(sql, parsers)
+        StockData15m.set_data_15m_data(self.stock_code, sql, parsers)
 
 
 class TradingAction(Parsers):
@@ -480,12 +475,6 @@ class TradingAction(Parsers):
 
         if trend_reversal_condition or bottom_signal_condition:
             self.buyAction = True
-
-        # if self.signal == -1 and self.reTrend == 1:  # 趋势反转 买入
-        #     self.buyAction = True
-        #
-        # if self.signal == -1 and self.tradAction == 1:  # 跌入底部触发信号买入
-        #     self.buyAction = True
 
 
 class PredictionCommon(ModelData, DlModel, UpdateData):
@@ -889,7 +878,7 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
             # 更新数据
             self.update_RecordRun()
-            self.update_Data15m()
+            self.update_sql_15m_data()  # 更新 sql_15m_data
             self.update_StockPool()  # 更新股票池
 
             if self.trade_boll:
