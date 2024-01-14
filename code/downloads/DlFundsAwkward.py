@@ -34,7 +34,7 @@ class DownloadFundsAwkward:
             params = (self.download_date,)
             RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
 
-        record = record[(record['Status'] == 'pending')]
+        record = record[(record['Status'] == 'pending')].reset_index(drop=True)
         return record
 
     def awkward_top10(self, start: int, end: int):
@@ -56,36 +56,37 @@ class DownloadFundsAwkward:
                 print(f'Dl EastMoney funds_awkward error: {ex}')
                 data = dle.funds_awkward_by_driver(funds_code)
 
-            # todo 数据保存失败
-            if data.shape[0]:
-                data['funds_name'] = funds_name
-                data['funds_code'] = funds_code
-                data['Date'] = self.download_date
-
-                data = data[['stock_name', 'funds_name', 'funds_code', 'Date']]
-                aw.append_fundsAwkward(data)
-
-                sql = f'''Status = 'success' where id = '{id_}';'''
-                print(f'{funds_name} data download success;\n')
-
-            else:
-                sql = f'''Status = 'failed' where id = '%s';'''
+            if data.empty:
+                sql = f''' `Status` = 'failed' where id = %s;'''
+                params = (id_,)
+                RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
                 print(f'{funds_name} data download failed;\n')
+                continue
 
+            data['funds_name'] = funds_name
+            data['funds_code'] = funds_code
+            data['Date'] = self.download_date
+
+            data = data[['stock_name', 'funds_name', 'funds_code', 'Date']]
+            aw.append_fundsAwkward(data)
+
+            sql = f''' `Status` = 'success' where id = %s;'''
             params = (id_,)
             RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
-
+            # print(data)
+            print(f'{funds_name} data download success;\n')
             num += 1
             time.sleep(5)
 
     def multi_processing(self):
         self.pending = self.pending_data()
         print(self.pending.tail())
-        # exit()
         indexes = self.pending.shape[0]
-
+        # print(indexes)
+        # exit()
         if indexes:
             if indexes > 3:
+
                 index1 = indexes // 3
                 index2 = indexes // 3 * 2
 

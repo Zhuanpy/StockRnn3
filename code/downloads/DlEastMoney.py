@@ -485,7 +485,7 @@ class DownloadData:
             data = pd.DataFrame(dic)
 
         except ValueError:
-            data = pd.DataFrame()
+            return pd.DataFrame()
 
         return data
 
