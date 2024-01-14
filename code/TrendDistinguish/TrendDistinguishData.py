@@ -48,12 +48,16 @@ class CountTrendData(TrendDistinguishData):
         self.data = self.calculates(_date)
 
     def save_array_data(self, array_data, file_path):
+
         array_data.shape = (1, 150, 200, 4)
+
         try:
             existing_data = np.load(file_path, allow_pickle=True)
             combined_data = np.append(existing_data, array_data, axis=0)
             np.save(file_path, combined_data)
+
         except FileNotFoundError:
+
             pass
 
     def count_trend(self):
@@ -104,6 +108,7 @@ class CountTrendData(TrendDistinguishData):
             filename_npy = f'{self.stock_code}.npy'
 
             for s in range(shapes):
+
                 _figName = AnalysisDataPath.macd_train_path(folder_prefix, filename_jpg)
                 _file = AnalysisDataPath.macd_train_path(folder_prefix, filename_npy)
 

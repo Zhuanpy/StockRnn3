@@ -309,11 +309,5 @@ class RecordStock:
 
 
 if __name__ == '__main__':
-    # lf = LoadBasicInform()
-    data_ = LoadFundsAwkward.load_fundsAwkward()
-    # record_download_top500fundspositionstock
-    data_ = data_[['id', 'Name', 'Code', 'Status', 'Date']]
-    database = 'stockrecord'
-    table = 'record_download_top500fundspositionstock'
-    Alc.pd_append(data_, database, table)
+    data_ = LoadBasicInform.load_record_north_funds()
     print(data_)

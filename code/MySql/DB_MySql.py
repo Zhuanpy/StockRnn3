@@ -43,11 +43,8 @@ def execute_sql(database: str, sql: str, params: tuple):
 
 
 def execute_sql_return_value(database: str, sql: str, params: tuple):
-    # sql1 = f'''select * from {db}.`{self.stock_code}`
-    # where date in (select max(date) from {db}.`{self.stock_code}`);'''
     connection, cursor = sql_cursor(database)
     data = cursor.execute(sql, params)
-
     return data
 
 

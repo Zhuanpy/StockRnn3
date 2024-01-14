@@ -148,7 +148,7 @@ class DataDailyRenew:
         tables = ['tostock', 'amount', 'toboard']
 
         record = LoadBasicInform.load_record_north_funds()
-        # print(record)
+
         for index in record.index:
 
             table = record.loc[index, 'name']
@@ -160,7 +160,7 @@ class DataDailyRenew:
             ending = None
 
             if current <= _current:
-                print(f'无新数据:{table}')
+                logging.info(f'{table}无最新数据;')
                 continue
 
             try:
@@ -188,7 +188,6 @@ class DataDailyRenew:
                 if table == tables[2]:  # 北向资金流入板块数据
                     days = current - _ending
                     days = days.days
-                    print(days)
 
                     data = pd.DataFrame()
 
@@ -198,13 +197,13 @@ class DataDailyRenew:
                         date_ = date_.strftime('%Y-%m-%d')
                         dl = My_dle.funds_to_sectors(date_)  # 下载无最新数据时
 
-                        if not dl.shape[0]:
+                        if dl.empty:
                             continue
 
                         data = pd.concat([data, dl], ignore_index=True)
 
                     # 判断是否有下载数据，无下载数据跳出循环，有下载数据继续更新
-                    if not data.shape[0]:
+                    if data.empty:
                         break
 
                     ending = data.iloc[-1]['TRADE_DATE']
@@ -212,12 +211,13 @@ class DataDailyRenew:
 
                 # 更新 保存 record 数据
                 if not ending or ending <= _ending:
-                    print(f'{table}无最新数据;')
+                    logging.info(f'{table}无最新数据;')
                     continue
 
                 sql = f''' ending_date = '%s', renew_date='%s' where id=%s; '''
                 params = (ending, current, id_)
                 LoadBasicInform.set_table_record_north_funds(sql=sql, params=params)
+
                 logging.info(f'{table}数据更新成功;')
 
             except Exception as ex:

@@ -5,6 +5,7 @@ from code.MySql.LoadMysql import LoadFundsAwkward as aw
 from code.MySql.LoadMysql import RecordStock
 from code.MySql.LoadMysql import StockPoolData as pl
 from DlEastMoney import DownloadData as dle
+import logging
 
 
 class DownloadFundsAwkward:
@@ -23,6 +24,7 @@ class DownloadFundsAwkward:
     def pending_data(self):
 
         record = RecordStock.load_record_download_top500fundspositionstock()
+
         record['Date'] = pd.to_datetime(record['Date'])  # .date
         record_date = record.loc[0, 'Date'].date()
 
@@ -46,21 +48,27 @@ class DownloadFundsAwkward:
             funds_code = self.pending.loc[index, 'Code']
             id_ = self.pending.loc[index, 'id']
 
-            print(f'回测进度：\n总股票数:{end - start}个; 剩余股票: {end - start - num}个;\n'
-                  f'当前股票：{funds_name},{funds_code};')
+            info_text = f'回测进度：\n总股票数:{end - start}个; ' \
+                        f'剩余股票: {end - start - num}个;\n当前股票：{funds_name},{funds_code};'
+
+            logging.info(info_text)
 
             try:
                 data = dle.funds_awkward(funds_code)
 
             except Exception as ex:
-                print(f'Dl EastMoney funds_awkward error: {ex}')
                 data = dle.funds_awkward_by_driver(funds_code)
+
+                info_text = f'Dl EastMoney funds_awkward error: {ex}'
+                logging.info(info_text)
 
             if data.empty:
                 sql = f''' `Status` = 'failed' where id = %s;'''
                 params = (id_,)
                 RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
-                print(f'{funds_name} data download failed;\n')
+
+                info_text = f'{funds_name} data download failed;\n'
+                logging.info(info_text)
                 continue
 
             data['funds_name'] = funds_name
@@ -73,34 +81,37 @@ class DownloadFundsAwkward:
             sql = f''' `Status` = 'success' where id = %s;'''
             params = (id_,)
             RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
-            # print(data)
-            print(f'{funds_name} data download success;\n')
+
+            info_text = f'{funds_name} data download success;\n'
+            logging.info(info_text)
+
             num += 1
             time.sleep(5)
 
     def multi_processing(self):
         self.pending = self.pending_data()
         print(self.pending.tail())
+
+        if self.pending.empty:
+            return False
+
         indexes = self.pending.shape[0]
-        # print(indexes)
-        # exit()
-        if indexes:
-            if indexes > 3:
+        if indexes > 3:
 
-                index1 = indexes // 3
-                index2 = indexes // 3 * 2
+            index1 = indexes // 3
+            index2 = indexes // 3 * 2
 
-                p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, index1,))
-                p2 = multiprocessing.Process(target=self.awkward_top10, args=(index1, index2,))
-                p3 = multiprocessing.Process(target=self.awkward_top10, args=(index2, indexes,))
+            p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, index1,))
+            p2 = multiprocessing.Process(target=self.awkward_top10, args=(index1, index2,))
+            p3 = multiprocessing.Process(target=self.awkward_top10, args=(index2, indexes,))
 
-                p1.start()
-                p2.start()
-                p3.start()
+            p1.start()
+            p2.start()
+            p3.start()
 
-            else:
-                p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, indexes,))
-                p1.start()
+        else:
+            p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, indexes,))
+            p1.start()
 
 
 class AnalysisFundsAwkward:

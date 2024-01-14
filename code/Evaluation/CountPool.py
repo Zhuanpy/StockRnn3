@@ -1,6 +1,7 @@
 from code.MySql.LoadMysql import StockPoolData
 import pandas as pd
 import numpy as np
+import logging
 
 
 def count_board_by_date(date_):
@@ -15,55 +16,46 @@ def count_board_by_date(date_):
     b_up = board[board['Trends'] == 2].shape[0]
     b_up_ = board[board['Trends'] == 3].shape[0]
 
-    db = 'stockpool'
-    tb = 'poolcount'
+    sql = f''' _BoardUp = '%s', BoardUp_='%s', _BoardDown= '%s', BoardDown_= '%s', where date = '%s';'''
 
-    sql = f'''update  %s.%s set 
-               _BoardUp = '%s', 
-               BoardUp_='%s', 
-               _BoardDown= '%s', 
-               BoardDown_= '%s', 
-               where date = '%s';'''
-
-    params = (db, tb, b_up, b_up_, b_down, b_down_, date_)
-    StockPoolData.pool_execute_sql(sql, params=params)
+    params = (b_up, b_up_, b_down, b_down_, date_)
+    StockPoolData.set_table_to_pool(sql, params=params)
 
 
 class PoolCount:
     """
-        统计股票池的趋势并将结果存储到数据库中。
+    统计股票池的趋势并将结果存储到数据库中。
 
-        参数:
-        - date_ (str or None): 用于指定要统计趋势的日期。如果为 None，则使用股票池的第一个记录日期。
+    参数:
+    - date_ (str or None): 用于指定要统计趋势的日期。如果为 None，则使用股票池的第一个记录日期。
 
-        返回:
-        - pd.DataFrame: 包含统计结果的 DataFrame，列包括日期、上涨股票数、反转上涨股票数、下跌股票数、反转下跌股票数、
-                       板块上涨股票数、板块反转上涨股票数、板块下跌股票数、板块反转下跌股票数、
-                       趋势为上涨1、上涨2、上涨3、下跌1、下跌2、下跌3的股票数。
+    返回:
+    - pd.DataFrame: 包含统计结果的 DataFrame，列包括日期、上涨股票数、反转上涨股票数、下跌股票数、反转下跌股票数、
+                   板块上涨股票数、板块反转上涨股票数、板块下跌股票数、板块反转下跌股票数、
+                   趋势为上涨1、上涨2、上涨3、下跌1、下跌2、下跌3的股票数。
 
-        注意:
-        - 函数会将统计结果存储到数据库中，如果数据库中已存在相同日期的记录，则进行更新。
-        """
+    注意:
+    - 函数会将统计结果存储到数据库中，如果数据库中已存在相同日期的记录，则进行更新。
+    """
 
-    def __int__(self, date_=None):
-
+    def __init__(self, date_=None):
         self.date_ = date_
-        self.ups, self.re_ups, self._up, self.up_ = None, None, None, None,
-        self.downs, self.re_downs, self._down, self.down_ =  None, None, None, None
-        self.up1, self.up2, self.up3, self.down1, self.down2, self.down3 = None, None, None, None, None, None
-        self.b_down, self.b_down_, self.b_up, self.b_up_ = None, None, None, None
+        self.pool = None
+        self.ups, self.re_ups, self._up, self.up_, self.downs, self.re_downs, self._down, self.down_ = [None] * 8
+        self.up1, self.up2, self.up3, self.down1, self.down2, self.down3 = [None] * 6
+        self.b_down, self.b_down_, self.b_up, self.b_up_ = [None] * 4
 
     def load_pool_data(self):
 
-        pool = StockPoolData.load_StockPool()
+        data = StockPoolData.load_StockPool()
 
         if not self.date_:
-            self.date_ = pool.iloc[0]['RecordDate']
+            self.date_ = data.iloc[0]['RecordDate']
 
-        pool = pool[pool['RecordDate'] == pd.to_datetime(self.date_)]
-        pool = pool[['RecordDate', 'Trends', 'ReTrend', 'RnnModel']].reset_index(drop=True)
+        data = data[data['RecordDate'] == pd.to_datetime(self.date_)]
+        data = data[['RecordDate', 'Trends', 'ReTrend', 'RnnModel']].reset_index(drop=True)
 
-        return pool
+        return data
 
     def calculate_trend_statistics(self, pool):
 
@@ -82,7 +74,7 @@ class PoolCount:
         return pool
 
     def calculate_rnn_statistics(self, pool):
-        ''' 统计Rnn得分'''
+        """ 统计Rnn得分 """
         self.up1 = pool[(pool['RnnModel'] > 0) & (pool['RnnModel'] < 2.5)].shape[0]
         self.up2 = pool[(pool['RnnModel'] >= 2.5) & (pool['RnnModel'] < 5)].shape[0]
         self.up3 = pool[(pool['RnnModel'] >= 5)].shape[0]
@@ -102,18 +94,20 @@ class PoolCount:
         return board  # b_down, b_down_, b_up, b_up_
 
     def count_trend(self):
-        pool = self.load_pool_data()
+        """ 加载数据 """
+        self.pool = self.load_pool_data()
 
         ''' 统计趋势 '''
-        pool = self.calculate_trend_statistics(pool)
+        self.pool = self.calculate_trend_statistics(self.pool)
 
         ''' 统计Rnn得分'''
-        self.calculate_rnn_statistics(pool)
+        self.calculate_rnn_statistics(self.pool)
 
         ''' count board '''
         self.calculate_board_statistics()
 
         ''' values DataFrame '''
+
         dic = {'date': [self.date_], 'Up': [self.ups], 'ReUp': [self.re_ups], 'Down': [self.downs],
                'ReDown': [self.re_downs],
                '_BoardUp': [self.b_up], 'BoardUp_': [self.b_up_], '_BoardDown': [self.b_down],
@@ -124,30 +118,26 @@ class PoolCount:
 
         data = pd.DataFrame(dic)
 
-        import sqlalchemy
-
+        import sqlalchemy.exc
         try:
             StockPoolData.append_poolCount(data)
 
         except sqlalchemy.exc.IntegrityError:
 
-            sql = f'''UPDATE %s.%s SET 
-                   Up='%s', ReUp='%s', Down='%s', _up='%s', up_='%s',
-                   _down='%s', down_='%s', ReDown='%s', 
-                   _BoardUp='%s', BoardUp_= '%s', _BoardDown= '%s', BoardDown_= '%s', 
-                   Up1='%s', Up2= '%s', Up3= '%s', Down1= '%s', Down2= '%s', Down3= '%s', 
-                   WHERE date='%s';'''
+            sql = f''' Up='%s', ReUp='%s', Down='%s', _up='%s', 
+            up_='%s', _down='%s', down_='%s', ReDown='%s',
+             _BoardUp='%s', BoardUp_= '%s', _BoardDown= '%s', BoardDown_= '%s',
+             Up1='%s', Up2= '%s', Up3= '%s', Down1= '%s', Down2= '%s', Down3= '%s', WHERE date='%s';'''
 
-            params = (StockPoolData.db_pool, StockPoolData.tb_poolCount,
-                      self.ups, self.re_ups, self.downs, self._up, self.up_,
+            params = (self.ups, self.re_ups, self.downs, self._up, self.up_,
                       self._down, self.down_, self.re_downs,
                       self.b_up, self.b_up_, self.b_down, self.b_down_,
                       self.up1, self.up2, self.up3, self.down1, self.down2, self.down3, self.date_)
 
-            StockPoolData.pool_execute_sql(sql, params=params)
+            StockPoolData.set_table_to_pool(sql, params=params)
 
-        print('Count Pool Trends Success;')
-
+        info_text = 'Count Pool Trends Success;'
+        logging.info(info_text)
         return data
 
 
