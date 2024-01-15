@@ -7,12 +7,15 @@ from code.MySql.LoadMysql import StockPoolData as pl
 from DlEastMoney import DownloadData as dle
 import logging
 
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class DownloadFundsAwkward:
     """
     # 函数说明
     # 下载数据 DownloadFundsAwkwardData
-    # 1.下载排名前近3年收益排名前300的基金数据。
+    # 1.下载排名前近3年收益排名前600的基金数据。
     # 2.下载此基金数据重仓前10的股票数据。
     """
 
@@ -44,6 +47,7 @@ class DownloadFundsAwkward:
         num = 0
 
         for index in range(start, end):
+
             funds_name = self.pending.loc[index, 'Name']
             funds_code = self.pending.loc[index, 'Code']
             id_ = self.pending.loc[index, 'id']
@@ -58,23 +62,28 @@ class DownloadFundsAwkward:
 
             except Exception as ex:
 
+                info_text = f'Download Funds awkward error: {ex}'
+                logging.info(info_text)
+
                 try:
                     data = dle.funds_awkward_by_driver(funds_code)
 
-                info_text = f'Dl EastMoney funds_awkward error: {ex}'
-                logging.info(info_text)
-
                 except Exception as ex:
-                    data = None
-                    print(f'Dl EastMoney funds_awkward error: {ex}')
+                    info_text = f'Download Funds awkward error: {ex}'
+                    logging.info(info_text)
+
+                    # 更新参数
+                    sql = f''' `Status` = 'failed' where id = %s;'''
+                    params = (id_,)
+                    RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
+
+                    continue
 
             if data.empty:
+                # 更新参数
                 sql = f''' `Status` = 'failed' where id = %s;'''
                 params = (id_,)
                 RecordStock.set_table_record_download_top500fundspositionstock(sql, params)
-
-                info_text = f'{funds_name} data download failed;\n'
-                logging.info(info_text)
                 continue
 
             data['funds_name'] = funds_name
@@ -95,35 +104,39 @@ class DownloadFundsAwkward:
             time.sleep(5)
 
     def multi_processing(self):
+
         self.pending = self.pending_data()
-        print(self.pending.tail())
 
         if self.pending.empty:
-            return False
+            info_text = f'funds awkward top 10 stock data no more data;\n'
+            logging.info(info_text)
+            return True
 
         indexes = self.pending.shape[0]
-        if indexes > 3:
 
-            index1 = indexes // 3
-            index2 = indexes // 3 * 2
-
-            p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, index1,))
-            p2 = multiprocessing.Process(target=self.awkward_top10, args=(index1, index2,))
-            p3 = multiprocessing.Process(target=self.awkward_top10, args=(index2, indexes,))
-
-            p1.start()
-            p2.start()
-            p3.start()
-
-        else:
+        if indexes < 3:
             p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, indexes,))
             p1.start()
+            return True
+
+        index1 = indexes // 3
+        index2 = indexes // 3 * 2
+
+        p1 = multiprocessing.Process(target=self.awkward_top10, args=(0, index1,))
+        p2 = multiprocessing.Process(target=self.awkward_top10, args=(index1, index2,))
+        p3 = multiprocessing.Process(target=self.awkward_top10, args=(index2, indexes,))
+
+        p1.start()
+        p2.start()
+        p3.start()
+
+        return True
 
 
 class AnalysisFundsAwkward:
     """
     # 函数说明
-    # 分析统计数据 AnalysisFundsAwkwardData
+    # 分析统计数据 Analysis Funds Awkward Data
     # 1.统计出股票池；
     # 2.找出基金增持股票；
     # 3.找出基金减持股票；
@@ -173,44 +186,53 @@ class AnalysisFundsAwkward:
 
         print(f'Success count: {self.count_dic}')
 
-    def normalization_last(self):
+    def normalization_select_date(self):
 
         awkward = self.awkward[self.awkward['Date'] == self.DlDate]
+        print(awkward.head())
         print(self.pool.head())
+        # exit()
+        # todo 此函数和用法有问题，需要改进
+        if awkward.empty:
+            return False
 
-        if awkward.shape[0]:
-            for index in self.pool.index:
-                stock_name = self.pool.loc[index, 'name']
-                stock_id = self.pool.loc[index, 'id']
+        for _, row in self.pool.iterrows():
 
-                data_ = self.awkward[self.awkward['stock_name'] == stock_name
-                                     ].groupby('Date').count().tail(3).reset_index()
+            stock_name = row['name']
+            stock_id = row['id']
 
-                data_['stock_name'] = stock_name
-                data_ = data_.rename(columns={'Selection': 'count'})
-                data_['TrendCount'] = data_['count'] - data_['count'].shift(1)
-                data_['score'] = round((data_['count'] - self.num_min) / (self.num_max - self.num_min), 4)
-                data_ = data_[['stock_name', 'count', 'TrendCount', 'score', 'Date']].tail(1)
+            data_ = self.awkward[self.awkward['stock_name'] == stock_name].groupby('Date').count().tail(3).reset_index()
 
-                if data_.shape[0]:
-                    score = data_.iloc[0]['score']
-                    aw.append_awkwardNormalization(data_)
+            # print(data_)
 
-                else:
-                    score = 0
+            # data_awkward = awkward[awkward['stock_name'] == stock_name].groupby('Date').count()
+            # print(data_awkward)
+            # exit()
+            data_['stock_name'] = stock_name
+            data_ = data_.rename(columns={'Selection': 'count'})
+            data_['TrendCount'] = data_['count'] - data_['count'].shift(1)
+            data_['score'] = round((data_['count'] - self.num_min) / (self.num_max - self.num_min), 4)
+            data_ = data_[['stock_name', 'count', 'TrendCount', 'score', 'Date']].tail(1)
 
-                # 更新股票池基金得分
-                sql = f'''FundsAwkward= %s where id='%s';'''
-                parser = (score, stock_id)
-                pl.set_table_to_pool(sql, parser)
-                self.count_dic[stock_name] = score
+            if data_.shape[0]:
+                score = data_.iloc[0]['score']
+                aw.append_awkwardNormalization(data_)
 
-            print(f'Success count: {self.count_dic}')
+            else:
+                score = 0
+
+            # 更新股票池基金得分
+            sql = f'''FundsAwkward= %s where id='%s';'''
+            parser = (score, stock_id)
+            pl.set_table_to_pool(sql, parser)
+            self.count_dic[stock_name] = score
+
+        print(f'Success count: {self.count_dic}')
 
 
 if __name__ == '__main__':
     DlDate = '2024-01-14'
-    # aly = AnalysisFundsAwkward(dl_date=DlDate)
-    # aly.normalization_last()
-    download = DownloadFundsAwkward(DlDate)
-    download.multi_processing()
+    analysis = AnalysisFundsAwkward(DlDate)
+    analysis.normalization_select_date()
+    # download = DownloadFundsAwkward(DlDate)
+    # download.multi_processing()
