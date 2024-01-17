@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
-from code.MySql.LoadMysql import StockPoolData
+from code.MySql.DataBaseStockPool import TableStockPool
 from RnnRunModel import PredictionCommon
 import multiprocessing
 from code.Normal import Useful
@@ -15,7 +15,7 @@ class RMMonitor:
         self.db, self.tb = 'StockPool', 'StockPool'
 
     def show_results(self):
-        pool = StockPoolData.load_StockPool()
+        pool = TableStockPool.load_StockPool()
         positions = pool[pool['Position'] == 1]
         reTrend = pool[(pool['RecordDate'] == pd.Timestamp.now().date()) &
                        (pool['Trends'] == -1) &
@@ -48,7 +48,7 @@ class RMMonitor:
 
     def monitor_multiple_process(self):
 
-        self.pool_data = StockPoolData.load_StockPool()
+        self.pool_data = TableStockPool.load_StockPool()
 
         print(self.pool_data)
 
@@ -82,7 +82,7 @@ class RMMonitor:
 
     def monitor_position_stock(self):
 
-        pool = StockPoolData.load_StockPool()
+        pool = TableStockPool.load_StockPool()
         data = pool[pool['Position'] == 1]
 
         for index in data.index:

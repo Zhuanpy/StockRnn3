@@ -4,7 +4,7 @@ from code.Normal import ResampleData
 from code.MySql.DB_MySql import MysqlAlchemy
 import pandas as pd
 from code.RnnDataFile.stock_path import StockDataPath
-from code.MySql.LoadMysql import StockData1m
+from code.MySql.DataBaseStockData1m import StockData1m
 
 
 def save_1m_to_mysql(stock_code: str, year: str, data):

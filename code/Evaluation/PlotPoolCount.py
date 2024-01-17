@@ -1,5 +1,5 @@
 import pandas as pd
-from code.MySql.LoadMysql import StockPoolData
+from code.MySql.DataBaseStockPool import TableStockPoolCount
 
 import matplotlib.pyplot as plt
 
@@ -61,7 +61,7 @@ class Subplot:
 
 
 def plot_pool_count():
-    data = StockPoolData.load_poolCount().tail(30)
+    data = TableStockPoolCount.load_poolCount().tail(30)
     data.loc[:, 'date'] = pd.to_datetime(data['date']).dt.strftime('%m/%d')
     print(data.head())
 

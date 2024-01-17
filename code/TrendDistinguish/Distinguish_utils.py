@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from code.MySql.LoadMysql import StockData1m
+from code.MySql.DataBaseStockData1m import StockData1m
 from code.Normal import ResampleData
 from code.Signals.BollingerSignal import Bollinger
 from code.Signals.MacdSignal import calculate_MACD

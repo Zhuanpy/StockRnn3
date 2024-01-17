@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from DlJuQuan import DownloadData as Download_juquan
 from DlEastMoney import DownloadData as Download_east
-from code.MySql.LoadMysql import LoadFundsAwkward, LoadBasicInform, StockData1m, LoadNortFunds
+from code.MySql.LoadMysql import LoadFundsAwkward, LoadBasicInform, LoadNortFunds
+from code.MySql.DataBaseStockData1m import StockData1m
 import pandas as pd
 import time
 

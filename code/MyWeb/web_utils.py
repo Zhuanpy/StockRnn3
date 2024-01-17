@@ -1,6 +1,6 @@
 import time
 import pandas as pd
-from code.MySql.LoadMysql import StockPoolData
+from code.MySql.DataBaseStockPool import TableStockPoolCount
 
 
 def get_times():
@@ -19,7 +19,7 @@ def get_trends_data(num=30):
     get trends data;
     """
 
-    data = StockPoolData.load_poolCount()
+    data = TableStockPoolCount.load_poolCount()
     data = data.tail(num).reset_index(drop=True)
     data['date'] = pd.to_datetime(data['date']).dt.strftime('%d%b')
     # print(data)

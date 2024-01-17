@@ -1,6 +1,6 @@
 ﻿import pandas as pd
 from LoadMysql import LoadFundsAwkward
-from LoadMysql import StockData1m as s1
+from DataBaseStockData1m import StockData1m
 from LoadMysql import LoadBasicInform as lm
 
 
@@ -32,7 +32,7 @@ def correction_date_1m_table():
             print(i)
 
         # 读取1m表格
-        data_1m = s1.load_1m(code_=code, _year='2022')
+        data_1m = StockData1m.load_1m(code_=code, _year='2022')
 
         data_1m['date'] = pd.to_datetime(data_1m['date'])
         data_1m = data_1m.sort_values(by='date')
@@ -51,7 +51,7 @@ def correction_date_1m_table():
 
         if _shape != shape_:
             # 替换表格
-            s1.replace_1m(code_=code, year_='2022', data=data_1m)
+            StockData1m.replace_1m(code_=code, year_='2022', data=data_1m)
             print(f'{name}, {code}: 更新了数据')
 
         i = i + 1

@@ -4,8 +4,10 @@ import numpy as np
 from keras.models import load_model
 from keras import backend as k
 from code.downloads.DlDataCombine import download_1m
-from code.MySql.LoadMysql import StockData1m, LoadRnnModel, StockData15m, StockPoolData
-from code.MySql.DB_MySql import execute_sql_return_value
+from code.MySql.LoadMysql import LoadRnnModel
+from code.MySql.DataBaseStockData15m import StockData15m
+from code.MySql.DataBaseStockData1m import StockData1m
+from code.MySql.DataBaseStockPool import TableStockPool
 from code.MySql.sql_utils import Stocks
 from code.Normal import MathematicalFormula as MyFormula
 from code.Normal import ResampleData, Useful, count_times, ReadSaveFile
@@ -444,7 +446,7 @@ class UpdateData(Parsers):
 
         parser = (self.close, self.ExpPrice, self.trend_score, self.trendValue,
                   self.reTrend, self.ScoreP, self.check_date, self.stock_id)
-        StockPoolData.set_table_to_pool(sql, parser)
+        TableStockPool.set_table_to_pool(sql, parser)
 
     def update_RecordRun(self):
         sql1 = f''' Trends = %s, SignalStartTime = %s, PredictCycleLength = %s, RealCycleLength = %s,
@@ -911,25 +913,4 @@ if __name__ == '__main__':
     stock_ = '002466'
     # rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=False, check_date=_date)
     # rm.single_stock()
-    list_timing_15m_minute = ['09:45:00', '10:00:00', '10:15:00', '10:30:00', '10:45:00',
-                              '11:00:00', '11:15:00', '11:30:00',
-                              '13:15:00', '13:30:00', '13:45:00',
-                              '14:00:00', '14:15:00', '14:30:00',
-                              '14:45:00', '15:00:00']
 
-    _date = '2024-01-15'
-    date_ = '2024-01-16'
-
-    data_15m = StockData15m.load_15m(stock_)
-    data_15m = data_15m[(data_15m['date'] > pd.to_datetime(_date)) & (data_15m['date'] < pd.to_datetime(date_))]
-
-    new_end_15m_timing = data_15m.iloc[-1]['date']
-    new_end_minute = new_end_15m_timing.time().strftime('%H:%M:%S')
-
-    # data_15m['minute'] = data_15m['date'].dt.strftime('%H:%M:%S')
-
-    print(F'new_end_15m_timing: {new_end_15m_timing}')
-    print(F'new_end_minute: {new_end_minute}')
-
-    if new_end_minute in list_timing_15m_minute:
-        print('Yes')

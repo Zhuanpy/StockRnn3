@@ -15,6 +15,7 @@ def my_url(pp: str):
 
 
 def my_headers(pp: str):
+
     """
     read header data
     save to different web heaer to txt and read txt;
@@ -24,6 +25,7 @@ def my_headers(pp: str):
     pph = os.path.join(password_path, 'EastMoney', f'header_{pp}.txt')
     f2 = open(pph, 'r')
     lines = f2.readlines()
+
     for line in lines:
         line = line.strip('\n')
         line = line.replace(' ', '')

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from RnnRunModel import PredictionCommon
-from code.MySql.LoadMysql import LoadRnnModel, StockPoolData
+from code.MySql.LoadMysql import LoadRnnModel
+from code.MySql.DataBaseStockPool import TableStockPool
 from code.MySql.sql_utils import Stocks
 import matplotlib.pyplot as plt
 import multiprocessing
@@ -106,8 +107,8 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
 
 
 def multiprocessing_count_pool(day_, month_parsers='2022-02', check_model=False):
-    data = StockPoolData.load_StockPool()
 
+    data = TableStockPool.load_StockPool()
     if not data.empty:
         shape_ = data.shape[0]
 

@@ -114,6 +114,7 @@ class RMBuiltModel:
         self.months = months
 
     def train1(self, stock):
+
         train = BuiltModel(stock, self.months)
         train.model_all()
 
@@ -123,33 +124,36 @@ class RMBuiltModel:
                                             (training_records['ModelData'] == 'success') &
                                             (training_records['ModelCreate'] != 'success')]
 
-        if not training_records.empty:
-            training_records = training_records.reset_index(drop=True)
-            shapes = training_records.shape[0]
-            current = pd.Timestamp('now').date()
+        if training_records.empty:
+            return False
 
-            for i, row in training_records.iterrows():
-                stock_ = row['name']
-                id_ = row.loc['id']
-                print(f'当前股票：{stock_};\n训练进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
+        training_records = training_records.reset_index(drop=True)
+        shapes = training_records.shape[0]
+        current = pd.Timestamp('now').date()
 
-                try:
-                    train = BuiltModel(stock_, self.months)
-                    train.model_all()
+        for i, row in training_records.iterrows():
+            stock_ = row['name']
+            id_ = row.loc['id']
 
-                    sql = f''' ModelCreate = 'success', ModelCreateTiming = %s where id = %s;'''
+            print(f'当前股票：{stock_};\n训练进度：\n总股票数: {shapes}个; 剩余股票: {(shapes - i)}个;')
 
-                    params = (current, id_)
+            try:
+                train = BuiltModel(stock_, self.months)
+                train.model_all()
 
-                except Exception as ex:
-                    print(f'ModelCreate Error : {ex}')
-                    sql = f''' ModelCreate = 'error', ModelCreateTiming = '{current}' where id = '{id_}';'''
-                    params = (current, id_)
+                sql = f''' ModelCreate = 'success', ModelCreateTiming = %s where id = %s;'''
 
-                LoadRnnModel.set_table_train_record(sql, params)
+                params = (current, id_)
+
+            except Exception as ex:
+                print(f'ModelCreate Error : {ex}')
+                sql = f''' ModelCreate = 'error', ModelCreateTiming = '{current}' where id = '{id_}';'''
+                params = (current, id_)
+
+            LoadRnnModel.set_table_train_record(sql, params)
 
 
 if __name__ == '__main__':
-    month_ = '2022-02'
+    month_ = '2023-01'
     run = RMBuiltModel(month_)
     run.train_remaining_models()

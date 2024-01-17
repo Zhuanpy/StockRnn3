@@ -2,7 +2,9 @@
 import os
 import numpy as np
 import pandas as pd
-from code.MySql.LoadMysql import StockData1m, StockData15m, LoadRnnModel
+from code.MySql.LoadMysql import LoadRnnModel
+from code.MySql.DataBaseStockData1m import StockData1m
+from code.MySql.DataBaseStockData15m import StockData15m
 from code.MySql.sql_utils import Stocks
 from code.parsers.RnnParser import *
 from code.Normal import ReadSaveFile, ResampleData
@@ -395,10 +397,11 @@ class TrainingDataCalculate(ModelData):
                       Bar1mVolMax1, Bar1mVolMax5, 'EndDaily1mVolMax5']  # 成交量乘以参数，相似化
 
         for i in vol_parser:
-            self.data_15m.loc[:, i] = round(self.data_15m[i] * self.data_15m[DailyVolEmaParser])
+            self.data_15m[i] = round(self.data_15m[i] * self.data_15m[DailyVolEmaParser])
 
         next_dic = {nextCycleAmplitudeMax: CycleAmplitudeMax,
                     nextCycleLengthMax: CycleLengthMax}
+
         condition = (~self.data_15m[SignalChoice].isnull())
         for keys, values in next_dic.items():
             self.data_15m.loc[condition, keys] = self.data_15m.loc[condition, values].shift(-1)
@@ -455,17 +458,17 @@ class TrainingDataCalculate(ModelData):
             self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
             from sqlalchemy.exc import IntegrityError
             try:
-                StockData15m.append_15m(data=self.data_15m, code_=self.stock_code)
+                StockData15m.append_15m(self.stock_code, self.data_15m)
 
             except IntegrityError:
                 old = StockData15m.load_15m(self.stock_code)
                 last_date = old.iloc[-1]['date']
                 new = self.data_15m[self.data_15m['date'] > last_date]
                 old = pd.concat([old, new], ignore_index=True)
-                StockData15m.replace_15m(data=old, code_=self.stock_code)
+                StockData15m.replace_15m(self.stock_code, old)
 
         else:
-            StockData15m.replace_15m(data=self.data_15m, code_=self.stock_code)
+            StockData15m.replace_15m(self.stock_code, self.data_15m)
 
         # 保存15m数据截止日期相关信息
         record_end_date = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
@@ -539,7 +542,6 @@ class RMTrainingData:
     def __init__(self, months: str, start_: str, ):  # _month
         self.month = months
         self.start_date = start_
-        # self._month = _month
 
     def single_stock(self, stock: str):
         calculation = TrainingDataCalculate(stock, self.month, self.start_date)
@@ -549,12 +551,13 @@ class RMTrainingData:
         """更新训练表格记录"""
         ids = tuple(records.id)
 
-        sql = f'''set ParserMonth = '%s', ModelData ='pending' where id in %s;'''
+        sql = f'''ParserMonth = %s, ModelData = 'pending' where id in %s;'''
 
         params = (self.month, ids)
         LoadRnnModel.set_table_train_record(sql, params)
 
     def all_stock(self):
+
         load = LoadRnnModel.load_train_record()
         records = load[load['ParserMonth'] == self.month]
 
@@ -575,27 +578,26 @@ class RMTrainingData:
             print('Training Data create success;')
             return False  # 结束运行，因为 records 为空
 
-        shapes = records.shape[0]
-        current = pd.Timestamp('now').date()
-
         for i, row in records.iterrows():
             stock_ = row['name']
             id_ = row['id']
 
-            print(f'\n计算进度：\n剩余股票: {(shapes - i)} 个; 总股票数: {shapes}个;\n当前股票：{stock_};')
+            print(f'\n计算进度：'
+                  f'\n剩余股票: {(records.shape[0] - i)} 个; 总股票数: {records.shape[0]}个;'
+                  f'\n当前股票：{stock_};')
 
             try:
                 run = TrainingDataCalculate(stock_, self.month, self.start_date)
                 run.calculation_read_from_sql()
 
-                sql = f'''ModelData = 'success', ModelDataTiming = '%s' where id = '%s'; '''
+                sql = f'''ModelData = 'success', ModelDataTiming = %s where id = %s; '''
 
-                params = (current, id_)
+                params = (pd.Timestamp('now').date(), id_)
                 LoadRnnModel.set_table_train_record(sql, params)
 
             except Exception as ex:
                 print(f'Model Data Create Error: {ex}')
-                sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = {id_}; '''
+                sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = %s; '''
                 params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, id_)
                 LoadRnnModel.set_table_train_record(sql, params)
 
@@ -603,7 +605,7 @@ class RMTrainingData:
 
 
 if __name__ == '__main__':
-    month_ = '2023-02'
+    month_ = '2023-01'
     start_d = '2018-01-01'
     running = RMTrainingData(month_, start_d)
     running.all_stock()

@@ -1,4 +1,4 @@
-from code.MySql.LoadMysql import StockPoolData
+from code.MySql.DataBaseStockPool import TableStockBoard, TableStockPool, TableStockPoolCount
 import pandas as pd
 import numpy as np
 import logging
@@ -6,10 +6,9 @@ import logging
 
 def count_board_by_date(date_):
     """统计板块表格"""
-
     ''' count board '''
 
-    board = StockPoolData.load_board()
+    board = TableStockBoard.load_board()
 
     b_down = board[board['Trends'] == 0].shape[0]
     b_down_ = board[board['Trends'] == 1].shape[0]
@@ -19,7 +18,7 @@ def count_board_by_date(date_):
     sql = f''' _BoardUp = '%s', BoardUp_='%s', _BoardDown= '%s', BoardDown_= '%s', where date = '%s';'''
 
     params = (b_up, b_up_, b_down, b_down_, date_)
-    StockPoolData.set_table_to_pool(sql, params=params)
+    TableStockPool.set_table_to_pool(sql, params=params)
 
 
 class PoolCount:
@@ -47,7 +46,7 @@ class PoolCount:
 
     def load_pool_data(self):
 
-        data = StockPoolData.load_StockPool()
+        data = TableStockPool.load_StockPool()
 
         if not self.date_:
             self.date_ = data.iloc[0]['RecordDate']
@@ -86,7 +85,7 @@ class PoolCount:
         return pool
 
     def calculate_board_statistics(self):
-        board = StockPoolData.load_board()
+        board = TableStockBoard.load_board()
         self.b_down = board[board['Trends'] == 0].shape[0]
         self.b_down_ = board[board['Trends'] == 1].shape[0]
         self.b_up = board[board['Trends'] == 2].shape[0]
@@ -120,7 +119,7 @@ class PoolCount:
 
         import sqlalchemy.exc
         try:
-            StockPoolData.append_poolCount(data)
+            TableStockPoolCount.append_poolCount(data)
 
         except sqlalchemy.exc.IntegrityError:
 
@@ -136,7 +135,7 @@ class PoolCount:
                       self.up1, self.up2, self.up3,
                       self.down1, self.down2, self.down3, self.date_)
 
-            StockPoolData.set_table_poolCount(sql, params=params)
+            TableStockPoolCount.set_table_poolCount(sql, params=params)
 
         info_text = 'Count Pool Trends Success;'
         logging.info(info_text)

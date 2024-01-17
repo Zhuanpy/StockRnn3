@@ -1,7 +1,8 @@
 import pandas as pd
 from code.TrendDistinguish.TrendDistinguishRunModel import TrendDistinguishModel
 from code.MySql.sql_utils import Stocks
-from code.MySql.LoadMysql import StockPoolData, LoadBasicInform
+from code.MySql.LoadMysql import LoadBasicInform
+from code.MySql.DataBaseStockPool import TableStockPoolCount, TableStockBoard
 import multiprocessing
 from code.Evaluation.CountPool import count_board_by_date
 
@@ -27,7 +28,7 @@ def distinguish_board(code_, date_, id_=None, freq='120m'):
     # 更新数据
     sql = f''' Trends= '{value_}', RecordDate='{date_}' where id='{id_}';'''
     params = (value_, date_, id_)
-    StockPoolData.set_table_to_board(sql, params)
+    TableStockBoard.set_table_to_board(sql, params)
 
 
 def board_evaluate(day_, _num, num_, data):
@@ -87,15 +88,15 @@ def multiprocessing_count_board(date_):
 
 if __name__ == '__main__':
 
-    count_data = StockPoolData.load_poolCount()
+    count_data = TableStockPoolCount.load_poolCount()
     count_data = count_data.tail(2)
     print(count_data)
     # exit()
-    for date_ in count_data.date:
-        date_ = date_.strftime('%Y-%m-%d')
+    for my_date_ in count_data.date:
+        my_date_ = my_date_.strftime('%Y-%m-%d')
 
         # 执行了趋势统计
-        multiprocessing_count_board(date_)
+        multiprocessing_count_board(my_date_)
 
         # 更新统计表格表格
-        count_board_by_date(date_)
+        count_board_by_date(my_date_)

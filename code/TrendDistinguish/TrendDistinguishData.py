@@ -3,7 +3,8 @@ import numpy as np
 from code.Normal import ResampleData
 from code.MySql.sql_utils import Stocks
 from code.Signals.StatisticsMacd import SignalMethod
-from code.MySql.LoadMysql import StockData1m, StockPoolData
+from code.MySql.DataBaseStockPool import TableStockPool
+from code.MySql.DataBaseStockData1m import StockData1m
 from Distinguish_utils import array_data
 from code.RnnDataFile.stock_path import AnalysisDataPath
 
@@ -128,7 +129,7 @@ class CountTrendData(TrendDistinguishData):
 
 if __name__ == '__main__':
 
-    pool = StockPoolData.load_StockPool()
+    pool = TableStockPool.load_StockPool()
     pool = pool.sort_values(by=['CycleAmplitude'])
     pool = pool.tail(40).head(20)
     print(pool['name'])

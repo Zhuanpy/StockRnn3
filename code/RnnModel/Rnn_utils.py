@@ -1,5 +1,6 @@
 import pandas as pd
-from code.MySql.LoadMysql import LoadRnnModel, StockData1m
+from code.MySql.LoadMysql import LoadRnnModel
+from code.MySql.DataBaseStockData1m import StockData1m
 from code.Normal import ResampleData
 import os
 from root_ import file_root

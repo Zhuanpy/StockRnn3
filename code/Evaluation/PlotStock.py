@@ -1,6 +1,9 @@
 import pandas as pd
 from code.MySql.LoadMysql import LoadNortFunds as lf
-from code.MySql.LoadMysql import StockData1m, LoadRnnModel, StockPoolData, StockData15m, LoadFundsAwkward
+from code.MySql.LoadMysql import LoadRnnModel, LoadFundsAwkward
+from code.MySql.DataBaseStockData1m import StockData1m
+from code.MySql.DataBaseStockData15m import StockData15m
+from code.MySql.DataBaseStockPool import TableStockPool
 import numpy as np
 import matplotlib.pyplot as plt
 from code.Normal import MathematicalFormula as mth
@@ -85,8 +88,8 @@ def board_trends(code: str):
 
 def data_stock_pool(name: str):
     sql = f'''where name = '{name}';'''
-    params = (name, )
-    data = StockPoolData.set_table_to_pool(sql, params)
+    params = (name,)
+    data = TableStockPool.set_table_to_pool(sql, params)
 
     return data
 
@@ -104,7 +107,7 @@ class CommonData:
         self.recordData = self.recordData[self.recordData['code'] == self.codeS]
 
     def data_pool(self):
-        self.DataPool = StockPoolData.load_StockPool()  # 'StockPool', 'StockPool'
+        self.DataPool = TableStockPool.load_StockPool()  # 'StockPool', 'StockPool'
         self.DataPool = self.DataPool[self.DataPool['name'] == self.nameS]
 
         self.codeB = self.DataPool.iloc[0]['IndustryCode']

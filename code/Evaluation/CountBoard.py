@@ -1,10 +1,10 @@
-﻿from code.MySql.LoadMysql import StockPoolData
+﻿from code.MySql.DataBaseStockPool import TableStockPoolCount
 from code.Evaluation.EvaluateBoard import multiprocessing_count_board
 from code.Evaluation.CountPool import count_board_by_date
 # 1
 
 # 哪些日期需要统计？ ：  stockpool.board表格中板块数据统计不对的日期
-count_data = StockPoolData.load_poolCount()
+count_data = TableStockPoolCount.load_poolCount()
 count_data = count_data.tail(2)
 # exit()
 for date_ in count_data.date:

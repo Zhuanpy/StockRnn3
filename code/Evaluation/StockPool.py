@@ -1,5 +1,7 @@
 import pandas as pd
-from code.MySql.LoadMysql import LoadNortFunds, StockPoolData, LoadFundsAwkward, StockData15m
+from code.MySql.LoadMysql import LoadNortFunds, LoadFundsAwkward
+from code.MySql.DataBaseStockData15m import StockData15m
+from code.MySql.DataBaseStockPool import TableStockPool, TableStockBoard, TableTradeRecord
 from code.Signals.BollingerSignal import Bollinger
 from code.Normal import MathematicalFormula as My_mfl
 from code.Normal import StockCode
@@ -13,9 +15,10 @@ from sqlalchemy.exc import IntegrityError
 
 from root_ import file_root
 
+
 def ScoreCycleAmplitude():
     errors = []
-    pool = StockPoolData.load_StockPool()
+    pool = TableStockPool.load_StockPool()
 
     for i in pool.index:
         stock_code = pool.loc[i, 'code']
@@ -40,7 +43,7 @@ def ScoreCycleAmplitude():
 
             sql = f'''CycleAmplitude = '%s' where id = %s; '''
             params = (LA, id_)
-            StockPoolData.set_table_to_pool(sql, params)
+            TableStockPool.set_table_to_pool(sql, params)
 
             print(f'{stock_code}: {LA}')
 
@@ -153,8 +156,8 @@ class ScoreStockPool(TrendDistinguishModel):
     def analysis_Industry(self):
 
         current = pd.Timestamp.now().date()
-        pool = StockPoolData.load_StockPool()
-        poolB = StockPoolData.load_board()
+        pool = TableStockPool.load_StockPool()
+        poolB = TableStockBoard.load_board()
         print(poolB)
         # exit()
         for index, row in poolB.iterrows():
@@ -171,7 +174,7 @@ class ScoreStockPool(TrendDistinguishModel):
             sql2 = f''' Trends = %s, RecordDate = %s where id = %s; '''
 
             params = (self.scoreB, board_date, board_id)
-            StockPoolData.set_table_to_board(sql2, params)
+            TableStockBoard.set_table_to_board(sql2, params)
 
             # 更新数据
             industry_data = pool[pool['IndustryCode'] == self.codeB]
@@ -196,7 +199,7 @@ class ScoreStockPool(TrendDistinguishModel):
 
                 params = (self.scoreB, self.scoreF, current, where)
                 # 更新股票池 个股对应板块数据
-                StockPoolData.set_table_to_pool(sql1, params)
+                TableStockPool.set_table_to_pool(sql1, params)
 
                 self.plotB(ax[0])
                 self.plotF(ax[1])
@@ -206,21 +209,21 @@ class ScoreStockPool(TrendDistinguishModel):
                 sql1 = f''' BoardBoll= %s, BoardMoney= null, RecordDate = %s where %s; '''
 
                 params = (self.scoreB, current, where)
-                StockPoolData.set_table_to_pool(sql1, params)
+                TableStockPool.set_table_to_pool(sql1, params)
 
                 # 更新股票池  板块数据
                 board_date = self.dataB.iloc[-1]['date'].date()
 
                 sql2 = f''' Trends =  %s, RecordDate =  %s, where id =  %s; '''
                 params = (self.scoreB, board_date, board_id)
-                StockPoolData.set_table_to_board(sql2, params)
+                TableStockBoard.set_table_to_board(sql2, params)
 
                 self.plotB(ax[0])
 
             if self.dataB.empty and not self.dataF.empty:
                 sql = f''' BoardBoll= null, BoardMoney= %s, RecordDate = %s where %s; '''
                 params = (self.scoreF, current, where)
-                StockPoolData.set_table_to_pool(sql, params)
+                TableStockPool.set_table_to_pool(sql, params)
 
                 self.plotF(ax[0])
 
@@ -244,7 +247,7 @@ class ScoreStockPool(TrendDistinguishModel):
 
     def ScoreFundsAwkward(self):
 
-        pool = StockPoolData.load_StockPool()
+        pool = TableStockPool.load_StockPool()
         awkward = LoadFundsAwkward.load_awkwardNormalization()
         max_ = awkward['trade_date'].max()
         bb = awkward[awkward['trade_date'] == max_]
@@ -262,7 +265,7 @@ class ScoreStockPool(TrendDistinguishModel):
             sql = f'''FundsAwkward = %s where id = %s; '''
 
             params = (ss, id_)
-            StockPoolData.set_table_to_pool(sql, params)
+            TableStockPool.set_table_to_pool(sql, params)
 
         print(f'Process Score Funds Awkward')
 
@@ -337,14 +340,14 @@ class UpdateTradeHistory:
                   self.tradeMarket, self.tradeAccount, self.tradeCancel, self.tradeReal,
                   self.tradeNo,)
 
-        StockPoolData.set_table_trade_record(sql, params)
+        TableTradeRecord.set_table_trade_record(sql, params)
         print(f'{method}账户股票：{self.name} 更新成功;')
 
     def update_stock_pool(self):
         sql = f''' set StopLoss = %s where id = %s; '''
 
         params = (self.stopLoss_, self.id_)
-        StockPoolData.set_table_to_pool(sql, params)
+        TableStockPool.set_table_to_pool(sql, params)
 
 
 class UpdateData:
@@ -378,7 +381,7 @@ class UpdateData:
 
     @classmethod
     def reset_position(cls):
-        data = StockPoolData.load_StockPool()
+        data = TableStockPool.load_StockPool()
         data = data[(data['Position'] == 1) &
                     (data['TradeMethod'] == 1)]
 
@@ -386,8 +389,8 @@ class UpdateData:
             for i in data.index:
                 id_ = data.loc[i, 'id']
                 sql = f'''Position = 0, TradeMethod = 0, PositionNum = 0 where id = %s;'''
-                params = (StockPoolData.db_pool, StockPoolData.tb_pool, id_)
-                StockPoolData.set_table_to_pool(sql, params)
+                params = (id_, )
+                TableStockPool.set_table_to_pool(sql, params)
 
         print('重置模拟持仓成功;')
 
@@ -419,7 +422,7 @@ class UpdateFakeStock(UpdateTradeHistory):  # 更新模拟账户交易数据
                 try:
                     sql = f''' Position = 1, TradeMethod = 1, PositionNum = %s where id = %s;'''
                     params = (num_position, id_)
-                    StockPoolData.set_table_to_pool(sql, params)
+                    TableStockPool.set_table_to_pool(sql, params)
                     print(f'{self.name}模拟持仓更新成功;')
 
                 except pymysql.err.OperationalError:
@@ -484,7 +487,7 @@ class UpdateFakeStock(UpdateTradeHistory):  # 更新模拟账户交易数据
                 new_ = data.loc[index:index, :]
                 new_['股东帐户'] = '43539099'
                 print(new_)
-                StockPoolData.append_tradeRecord(data=new_)
+                TableTradeRecord.append_tradeRecord(data=new_)
                 print(f'模拟账户股票：{self.name} 更新成功;')
 
             except sqlalchemy.exc.IntegrityError:
@@ -534,7 +537,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
     def update_position(self, file_='position_real'):
 
         try:
-            pool = StockPoolData.load_StockPool()
+            pool = TableStockPool.load_StockPool()
             pool = pool[(pool['Position'] == 1) &
                         (pool['TradeMethod'] == 2)]
 
@@ -543,7 +546,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
                     id_ = pool.loc[index, 'id']
                     sql = f''' Position = 0, TradeMethod = 0, PositionNum = 0 where id = %s;'''
                     params = (id_,)
-                    StockPoolData.set_table_to_pool(sql, params)
+                    TableStockPool.set_table_to_pool(sql, params)
 
             position = pd.read_excel(f'{self.root}/data/output/stock_pool/{file_}.xls', sheet_name='table')
             position = position.dropna(subset=['股票余额'])
@@ -556,7 +559,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
                     nums = position.loc[index, '股票余额']
                     sql = f''' Position = 1, TradeMethod = 2, PositionNum = %s where id = %s;'''
                     params = (nums, id_)
-                    StockPoolData.set_table_to_pool(sql, params)
+                    TableStockPool.set_table_to_pool(sql, params)
 
             title = '更新成功'
             message = '实盘持仓更新成功;'
@@ -621,7 +624,7 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
 
                 try:
                     new_ = data.loc[index:index, :]
-                    StockPoolData.append_tradeRecord(new_)
+                    TableTradeRecord.append_tradeRecord(new_)
 
                     print(f'实盘账户股票：{code_} 更新成功;')
 
@@ -642,8 +645,6 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
 
 if __name__ == '__main__':
     # todo # UserWarning: Glyph 21271 (\N{CJK UNIFIED IDEOGRAPH-5317}) missing from current font.
-    # real = UpdateFakeStock()
-    # real.update_history_trade()
-    sp = ScoreStockPool()
-    sp.analysis_Industry()
-    # sp.board_trends('bk1036')
+
+    stock_score = ScoreStockPool()
+    stock_score.analysis_Industry()

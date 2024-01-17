@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from code.MySql.LoadMysql import StockData15m
+from code.MySql.DataBaseStockData15m import StockData15m
 
 
 def transfer_data(stock_list: list):
