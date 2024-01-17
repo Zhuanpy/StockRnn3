@@ -59,7 +59,7 @@ class DownloadData:
         def get_analysis():
             date_ = entry_.get()
             al = AnalysisFundsAwkward(date_)
-            al.normalization_last()
+            al.normalization_select_date()
 
         window_ = Tk()
         window_.title('基金重仓')

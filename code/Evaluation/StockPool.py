@@ -13,10 +13,6 @@ from sqlalchemy.exc import IntegrityError
 
 from root_ import file_root
 
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-
 def ScoreCycleAmplitude():
     errors = []
     pool = StockPoolData.load_StockPool()
@@ -71,7 +67,6 @@ class ScoreStockPool(TrendDistinguishModel):
     def board_trends(self, code: str):
 
         try:
-
             # 获取趋势 df数据  和 得分
             data, score = self.distinguish_1m(stock_code=code, freq='120m', returnFreq=True, date_=None)
 
@@ -81,7 +76,6 @@ class ScoreStockPool(TrendDistinguishModel):
             data['BollTrend'] = data[BollMid] - data[BollMid].shift(1)
 
             data['BollScore'] = 0.5
-            data['pltbs'] = 0
 
             # boll trends
             data.loc[data['BollTrend'] > 0, 'BollScore'] = 0.9
@@ -90,9 +84,8 @@ class ScoreStockPool(TrendDistinguishModel):
             # 得分记录
             boll_max = data[BollUp].max()
             boll_min = data[BollDn].min()
-            # print(boll_max)
-            # print(boll_min)
-            # exit()
+
+            data['pltbs'] = 0.0
             data.loc[data['BollScore'] == 0.9, 'pltbs'] = float(boll_max)
             data.loc[data['BollScore'] == 0.1, 'pltbs'] = float(boll_min)
 
@@ -115,26 +108,27 @@ class ScoreStockPool(TrendDistinguishModel):
             data = data[data['SECURITY_CODE'] == code].reset_index(drop=True)
 
             if data.shape[0] > 12:
-                data.loc[:, 'ADD_MARKET_CAP'] = My_mfl.data2normalization(data['ADD_MARKET_CAP'])
-                data.loc[:, 'close'] = data['ADD_MARKET_CAP'].rolling(12, min_periods=1).mean()
+                data['ADD_MARKET_CAP'] = My_mfl.data2normalization(data['ADD_MARKET_CAP'])
+                data['close'] = data['ADD_MARKET_CAP'].rolling(12, min_periods=1).mean()
 
                 data = Bollinger(data)
-                data.loc[:, 'score'] = data['close'] - data[BollMid]
+                data['score'] = data['close'] - data[BollMid]
                 data = data.tail(60)
 
                 s = round(data.iloc[-1]['score'], 3)  # 更新评估得分
 
             else:
-                data = pd.DataFrame(data=None)
+                data = pd.DataFrame()
                 s = 0.0
 
         except IndexError:
-            data = pd.DataFrame(data=None)
+            data = pd.DataFrame()
             s = 0.0
 
         return data, s
 
     def plotB(self, ax):  # 板块趋势， plot 1:
+
         date_ = self.dataB.iloc[-1]['date']
         ax.plot(self.dataB['date'], self.dataB['close'])
         ax.plot(self.dataB['date'], self.dataB[BollUp])
@@ -142,7 +136,7 @@ class ScoreStockPool(TrendDistinguishModel):
         ax.plot(self.dataB['date'], self.dataB[BollDn])
         ax.scatter(self.dataB['date'], self.dataB['pltbs'])
         ax.set_xlabel('Date', loc='right')
-        ax.set_title(f'120m趋势/ Date:{date_.date()}', loc='left')
+        ax.set_title(f'120m 趋势/ Date:{date_.date()}', loc='left')
 
     def plotF(self, ax):  # 资金趋势 plot 2
         date_ = self.dataF.iloc[-1]['TRADE_DATE']
@@ -161,19 +155,20 @@ class ScoreStockPool(TrendDistinguishModel):
         current = pd.Timestamp.now().date()
         pool = StockPoolData.load_StockPool()
         poolB = StockPoolData.load_board()
+        print(poolB)
+        # exit()
+        for index, row in poolB.iterrows():
 
-        for index in poolB.index:
-
-            self.codeB = poolB.loc[index, 'code']
-            self.nameB = poolB.loc[index, 'name']
-            board_id = poolB.loc[index, 'id']
+            self.codeB = row['code']
+            self.nameB = row['name']
+            board_id = row['id']
 
             self.dataB, self.scoreB = self.board_trends(self.codeB)
             self.dataF, self.scoreF = self.funds_trends(self.codeB)
 
             # 更新股票池  板块数据
             board_date = self.dataB.iloc[-1]['date'].date()
-            sql2 = f''' Trends = '%s', RecordDate = '%s' where id = %s; '''
+            sql2 = f''' Trends = %s, RecordDate = %s where id = %s; '''
 
             params = (self.scoreB, board_date, board_id)
             StockPoolData.set_table_to_board(sql2, params)
@@ -181,7 +176,7 @@ class ScoreStockPool(TrendDistinguishModel):
             # 更新数据
             industry_data = pool[pool['IndustryCode'] == self.codeB]
 
-            if not industry_data.shape[0]:
+            if industry_data.empty:
                 continue
 
             ids = tuple(industry_data['id'])
@@ -196,19 +191,19 @@ class ScoreStockPool(TrendDistinguishModel):
             # 绘图
             fig, ax = plt.subplots(2, 1, figsize=(9, 7), dpi=120)
 
-            if self.dataB.shape[0] and self.dataF.shape[0]:
-                sql1 = f''' BoardBoll= '%s', BoardMoney= '%s', RecordDate = '%s' where %s; '''
+            if not self.dataB.empty and self.dataF.empty:
+                sql1 = f''' BoardBoll= %s, BoardMoney= '%s, RecordDate = %s where %s; '''
 
-                params = (self.scoreB.self.scoreF, current, where)
+                params = (self.scoreB, self.scoreF, current, where)
                 # 更新股票池 个股对应板块数据
                 StockPoolData.set_table_to_pool(sql1, params)
 
                 self.plotB(ax[0])
                 self.plotF(ax[1])
 
-            if self.dataB.shape[0] and not self.dataF.shape[0]:
+            if not self.dataB.empty and self.dataF.empty:
                 # 更新股票池 个股对应板块数据
-                sql1 = f''' BoardBoll= '%s', BoardMoney= null, RecordDate = '%s' where %s; '''
+                sql1 = f''' BoardBoll= %s, BoardMoney= null, RecordDate = %s where %s; '''
 
                 params = (self.scoreB, current, where)
                 StockPoolData.set_table_to_pool(sql1, params)
@@ -216,14 +211,14 @@ class ScoreStockPool(TrendDistinguishModel):
                 # 更新股票池  板块数据
                 board_date = self.dataB.iloc[-1]['date'].date()
 
-                sql2 = f''' Trends =  '%s', RecordDate =  '%s', where id =  '%s'; '''
+                sql2 = f''' Trends =  %s, RecordDate =  %s, where id =  %s; '''
                 params = (self.scoreB, board_date, board_id)
                 StockPoolData.set_table_to_board(sql2, params)
 
                 self.plotB(ax[0])
 
-            if not self.dataB.shape[0] and self.dataF.shape[0]:
-                sql = f''' BoardBoll= null, BoardMoney= '%s', RecordDate = '%s' where %s; '''
+            if self.dataB.empty and not self.dataF.empty:
+                sql = f''' BoardBoll= null, BoardMoney= %s, RecordDate = %s where %s; '''
                 params = (self.scoreF, current, where)
                 StockPoolData.set_table_to_pool(sql, params)
 
@@ -233,6 +228,9 @@ class ScoreStockPool(TrendDistinguishModel):
             from code.RnnDataFile.stock_path import AnalysisDataPath
             file_name = f'{self.codeB}_{self.nameB}_Analysis.jpg'
             path = AnalysisDataPath.analysis_industry_trend_jpg_path(file_name)
+
+            plt.rcParams['font.sans-serif'] = ['SimHei']
+            plt.rcParams['axes.unicode_minus'] = False
             plt.savefig(path)
             plt.close()
 
@@ -261,7 +259,7 @@ class ScoreStockPool(TrendDistinguishModel):
 
             ss = bb[bb['stock_name'] == stock_name].iloc[0]['TrendScore']
 
-            sql = f'''FundsAwkward = '%s' where id = %s; '''
+            sql = f'''FundsAwkward = %s where id = %s; '''
 
             params = (ss, id_)
             StockPoolData.set_table_to_pool(sql, params)
@@ -343,7 +341,7 @@ class UpdateTradeHistory:
         print(f'{method}账户股票：{self.name} 更新成功;')
 
     def update_stock_pool(self):
-        sql = f''' set StopLoss = '%s' where id = '%s'; '''
+        sql = f''' set StopLoss = %s where id = %s; '''
 
         params = (self.stopLoss_, self.id_)
         StockPoolData.set_table_to_pool(sql, params)
@@ -620,7 +618,6 @@ class UpdateRealStock(UpdateTradeHistory):  # 更新真实账户交易数据
                 data.loc[index, '止损价'] = self.stopLoss_
                 data.loc[index, '信号编号'] = self.signalTimes_
                 data.loc[index, '成交数量'] = abs(data.loc[index, '成交数量'])
-
 
                 try:
                     new_ = data.loc[index:index, :]

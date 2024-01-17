@@ -76,7 +76,7 @@ class DataDailyRenew:
 
             record['EndDate'] = pd.to_datetime(record['EndDate'])
             record['RecordDate'] = pd.to_datetime(record['RecordDate'])
-            record = record[(record['EndDate'] < current)]
+            record = record[(record['EndDate'] < current)].reset_index(drop=True)
 
             if record.empty:
                 logging.info('已是最新数据')
@@ -121,19 +121,21 @@ class DataDailyRenew:
 
                     save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
 
-                    save_1m_to_daily(data, stock_code)  # 将下载的1分钟数据，同时保存至 daily sql table
+                    if classification != '行业板块':
+                        save_1m_to_daily(data, stock_code)  # 将下载的1分钟数据，同时保存至 daily sql table
 
                     # 更新参数
-                    sql = f'''EndDate='%s', RecordDate = '%s', EsDownload = 'success' where id= %s; '''
-                    params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
+                    sql = f'''EndDate= %s, RecordDate = %s, EsDownload = 'success' where id= '%s'; '''
+                    params = (ending, current, id_)
                     RecordStock.set_table_record_download_1m_data(sql, params)
 
                 if ending == record_ending:
-                    sql = f''' EndDate = '%s', RecordDate = '%s' where id = %s; '''
-                    params = (RecordStock.db, RecordStock.table_record_download_1m_data, ending, current, id_)
+                    sql = f''' EndDate = %s, RecordDate = %s where id = '%s'; '''
+                    params = (ending, current, id_)
                     RecordStock.set_table_record_download_1m_data(sql, params)
 
-                    logging.info(f'{RecordStock.table_record_download_1m_data} 数据更新成功: {stock_name}, {stock_code}')
+                    info_text = f'{RecordStock.table_record_download_1m_data} 数据更新成功: {stock_name}, {stock_code}'
+                    logging.info(info_text)
 
                 time.sleep(2)
 
@@ -214,7 +216,7 @@ class DataDailyRenew:
                     logging.info(f'{table}无最新数据;')
                     continue
 
-                sql = f''' ending_date = '%s', renew_date='%s' where id=%s; '''
+                sql = f''' ending_date = %s, renew_date= %s where id=%s; '''
                 params = (ending, current, id_)
                 LoadBasicInform.set_table_record_north_funds(sql=sql, params=params)
 

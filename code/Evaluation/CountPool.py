@@ -124,17 +124,19 @@ class PoolCount:
 
         except sqlalchemy.exc.IntegrityError:
 
-            sql = f''' Up='%s', ReUp='%s', Down='%s', _up='%s', 
-            up_='%s', _down='%s', down_='%s', ReDown='%s',
-             _BoardUp='%s', BoardUp_= '%s', _BoardDown= '%s', BoardDown_= '%s',
-             Up1='%s', Up2= '%s', Up3= '%s', Down1= '%s', Down2= '%s', Down3= '%s', WHERE date='%s';'''
+            sql = f''' Up= %s, ReUp= %s, Down= %s, _up= %s, up_= %s, 
+            _down= %s, down_= %s, ReDown= %s, 
+            _BoardUp= %s, BoardUp_= %s, _BoardDown= %s, BoardDown_= %s,
+             Up1= %s, Up2= %s, Up3= %s, 
+             Down1= %s, Down2= %s, Down3= %s WHERE date = %s;'''
 
             params = (self.ups, self.re_ups, self.downs, self._up, self.up_,
                       self._down, self.down_, self.re_downs,
                       self.b_up, self.b_up_, self.b_down, self.b_down_,
-                      self.up1, self.up2, self.up3, self.down1, self.down2, self.down3, self.date_)
+                      self.up1, self.up2, self.up3,
+                      self.down1, self.down2, self.down3, self.date_)
 
-            StockPoolData.set_table_to_pool(sql, params=params)
+            StockPoolData.set_table_poolCount(sql, params=params)
 
         info_text = 'Count Pool Trends Success;'
         logging.info(info_text)

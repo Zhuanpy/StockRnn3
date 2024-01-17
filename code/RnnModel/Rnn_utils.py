@@ -10,16 +10,17 @@ def reset_record_time(_date):
     ids = LoadRnnModel.load_run_record()
     ids = tuple(ids['id'])
 
-    sql = f''' set SignalStartTime = '%s', Time15m = '%s' where id in %s;'''
+    sql = f'''SignalStartTime = %s, Time15m = %s where id in %s;'''
 
-    params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_run_record, time_, time_, ids)
+    params = (time_, time_, ids)
+
     LoadRnnModel.set_table_run_record(sql, params)
 
 
 def reset_id_time(id_, _date):
     time_ = (pd.to_datetime(_date) + pd.Timedelta(days=-150)).date()
 
-    sql = f'''SignalStartTime = '%s', Time15m = '%s' where id = %s;'''
+    sql = f'''SignalStartTime = %s, Time15m = %s where id = %s;'''
     params = (time_, time_, id_)
     LoadRnnModel.set_table_run_record(sql, params)
 

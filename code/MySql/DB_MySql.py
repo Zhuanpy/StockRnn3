@@ -34,12 +34,22 @@ def execute_sql(database: str, sql: str, params: tuple):
         connection, cursor = sql_cursor(database)
 
         with connection, cursor:
-            cursor.execute(sql, params)
+            if not params:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, params)
+
+            # 如果是查询操作，可以获取数据
+            if sql.strip().lower().startswith('select'):
+                data = cursor.fetchall()
+
+            else:
+                data = "Operation successful"
 
     except Exception as e:
         print(f"Error updating record: {e}")
 
-    return "Update successful"
+    return data
 
 
 def execute_sql_return_value(database: str, sql: str, params: tuple):

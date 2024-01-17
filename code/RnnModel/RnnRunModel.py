@@ -149,62 +149,73 @@ class ModelData(Parsers):
 
     def update_15m(self):
 
-        # 监测时，会出现非整数时间，此时需要把此时间删除  例如： bar date = 14:13:00
-        db = StockData15m.db_15m
+        # todo end_15m_timing 是从全部的15分钟数据中筛选出来，这样是否会浪费时间？ 是否有必要这么做 ?
+        end_15m_timing = StockData15m.get_data_15m_data_end_date(self.stock_code)
+        new_15m_data = self.data_15m[self.data_15m['date'] > end_15m_timing]
 
-        sql1 = f'''select * from %s.` %s` 
-        where date in (select max(date) from  %s.` %s`);'''
+        if new_15m_data.empty:
+            return False
 
-        params = (db, self.stock_code, db, self.stock_code)
-        _end_date = execute_sql_return_value(db, sql1, params)
+        """ 监测时，会出现非整数时间，此时需要把此时间删除
+        例如：new data 中 date = 14:13:00 
+        解决方案： 建立一个 15m minute list,
+        如果最后的时间 分钟不在 list中，则不要
+        """
 
-        _end_date = _end_date[0][0]
-        end_date = self.data_15m.iloc[-1]['date']
+        list_timing_15m_minute = ['09:45:00', '10:00:00',
+                                  '10:15:00', '10:30:00', '10:45:00',
+                                  '11:00:00', '11:15:00', '11:30:00',
+                                  '13:15:00', '13:30:00', '13:45:00',
+                                  '14:00:00', '14:15:00', '14:30:00',
+                                  '14:45:00', '15:00:00']
 
-        if _end_date < end_date and _end_date not in list(self.data_15m['date']):
-            sql2 = f'''where date='%s';'''  # '''delete from %s.`%s` where date='%s';'''
-            parser = (_end_date,)
-            StockData15m.delete_data_from_15m_data(self.stock_code, sql2, parser)
+        new_end_15m_timing = new_15m_data.iloc[-1]['date']
+        new_end_minute = new_end_15m_timing.time().strftime('%H:%M:%S')
 
-        new = self.data_15m[self.data_15m['date'] > _end_date]
+        if new_end_minute not in list_timing_15m_minute:
+            new_15m_data = new_15m_data[new_15m_data['date'] < new_end_15m_timing]
 
-        if not new.empty:
-            StockData15m.append_15m(data=new, stock_code=self.stock_code)
+        StockData15m.append_15m(data=new_15m_data, stock_code=self.stock_code)
 
-            signalTimes = self.data_15m[self.data_15m['date'] >= _end_date].iloc[0]['SignalTimes']
-            _signalTimes = self.jsons['RecordEndSignalTimes']
+        signalTimes = self.data_15m[self.data_15m['date'] >= end_15m_timing].iloc[0]['SignalTimes']
+        _signalTimes = self.jsons['RecordEndSignalTimes']
 
-            # SignalStartTime
-            if signalTimes != _signalTimes:
-                new_data = self.data_15m[(self.data_15m['SignalTimes'] == signalTimes) &
-                                         (self.data_15m['date'] <= _end_date)]
+        # SignalStartTime
+        if signalTimes == _signalTimes:
+            return False
 
-                for index in new_data.index:
-                    data_id = new_data.loc[index, 'date']
-                    sts = new_data.loc[index, 'SignalTimes']
-                    stt = new_data.loc[index, 'SignalStartTime']
-                    sl = new_data.loc[index, 'Signal']
-                    slc = new_data.loc[index, 'SignalChoice']
+        new_data = self.data_15m[(self.data_15m['SignalTimes'] == signalTimes) &
+                                 (self.data_15m['date'] <= end_15m_timing)]
 
-                    sql3 = f''' SignalTimes = '%s', SignalStartTime = '%s',
-                    `Signal` = '%s', SignalChoice='%s' where date = '%s';'''
+        sql_update_signal = f'''SignalTimes = %s, SignalStartTime = %s, 
+        Signal = %s, SignalChoice= %s where date = %s;'''
+        for _, row in new_data.iterrows():
+            data_id = row['date']
+            signal_times = row['SignalTimes']
+            signal_start_time = row['SignalStartTime']
+            signal = row['Signal']
+            signal_choice = row['SignalChoice']
 
-                    parser = (sts, stt, sl, slc, data_id)
-                    StockData15m.set_data_15m_data(self.stock_code, sql3, parser)
+            parser = (signal_times, signal_start_time, signal, signal_choice, data_id)
+            StockData15m.set_data_15m_data(self.stock_code, sql_update_signal, parser)
 
-                # 保存 15m 数据 截止日期
-                date_ = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
-                SignalStart_ = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-                signal_ = self.data_15m.iloc[-1]['Signal']
-                SignalTimes_ = self.data_15m.iloc[-1]['SignalTimes']
+        # 保存 15m 数据 截止日期
+        date_ = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
+        signal_start_time_ = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
+        signal_ = self.data_15m.iloc[-1]['Signal']
+        signal_times_ = self.data_15m.iloc[-1]['SignalTimes']
 
-                self.jsons['RecordEndDate'] = date_
-                self.jsons['RecordEndSignal'] = signal_
-                self.jsons['RecordEndSignalTimes'] = SignalTimes_
-                self.jsons['RecordEndSignalStartTime'] = SignalStart_
-                ReadSaveFile.save_json(dic=self.jsons, months=self.month_parsers, code=self.stock_code)  # 更新参数
+        self.jsons.update({
+            'RecordEndDate': date_,
+            'RecordEndSignal': signal_,
+            'RecordEndSignalTimes': signal_times_,
+            'RecordEndSignalStartTime': signal_start_time_
+        })
+
+        ReadSaveFile.save_json(dic=self.jsons, months=self.month_parsers, code=self.stock_code)  # 更新参数
 
     def daily_data(self):
+
         data = ResampleData.resample_1m_data(data=self.data_1m, freq='day')
 
         data['date'] = pd.to_datetime(data['date']) + pd.Timedelta(minutes=585)
@@ -234,8 +245,7 @@ class ModelData(Parsers):
 
         t15m = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].date()
 
-        sql = f''' set Time15m = '%s' where id = %s;'''
-
+        sql = f''' Time15m = %s where id = %s;'''
         parser = (t15m, self.stock_id)
         LoadRnnModel.set_table_run_record(sql, parser)
 
@@ -429,18 +439,18 @@ class UpdateData(Parsers):
         self._limitTradeTiming = None
 
     def update_StockPool(self):
-        sql = f''' close = '%s', ExpPrice = '%s', RnnModel= '%s', Trends= '%s', 
-        ReTrend= '%s', TrendProbability= '%s', RecordDate= '%s' where id= %s; '''
+        sql = f''' close = %s, ExpPrice = %s, RnnModel= %s, Trends= %s, 
+        ReTrend= %s,  TrendProbability= %s,  RecordDate= %s where id= %s; '''
 
         parser = (self.close, self.ExpPrice, self.trend_score, self.trendValue,
                   self.reTrend, self.ScoreP, self.check_date, self.stock_id)
         StockPoolData.set_table_to_pool(sql, parser)
 
     def update_RecordRun(self):
-        sql1 = f''' Trends = '%s', SignalStartTime = '%s', PredictCycleLength = '%s', RealCycleLength = '%s',
-        PredictCycleChange = '%s', PredictCyclePrice = '%s', RealCycleChange = '%s', PredictBarChange = '%s',
-        RealBarChange = '%s', PredictBarVolume = '%s', RealBarVolume = '%s', ScoreTrends = '%s',
-        TradePoint = '%s', TimeRunBar = '%s', RenewDate = '%s', where id = '%s','''
+        sql1 = f''' Trends = %s, SignalStartTime = %s, PredictCycleLength = %s, RealCycleLength = %s,
+        PredictCycleChange = %s, PredictCyclePrice = %s, RealCycleChange = %s, PredictBarChange = %s,
+        RealBarChange = %s, PredictBarVolume = %s, RealBarVolume = %s, ScoreTrends = %s,
+        TradePoint = %s, TimeRunBar = %s, RenewDate = %s where id = %s; '''
 
         parsers = (self.signalValue, self.signalStartTime, self.predict_length, self.real_length,
                    self.predict_CycleChange, self.predict_CyclePrice, self.real_CycleChange, self.predict_bar_change,
@@ -450,9 +460,14 @@ class UpdateData(Parsers):
         LoadRnnModel.set_table_run_record(sql1, parsers)
 
     def update_sql_15m_data(self):
-        sql = f''' PredictCycleChange = '%s', PredictCyclePrice = '%s', PredictCycleLength = '%s', 
-        PredictBarChange = '%s', PredictBarPrice = '%s', PredictBarVolume = '%s', ScoreRnnModel = '%s', 
-        TradePoint = '%s', where date='%s';'''
+        sql = f'''PredictCycleChange = %s, 
+        PredictCyclePrice = %s, 
+        PredictCycleLength = %s, 
+        PredictBarChange = %s, 
+        PredictBarPrice = %s, 
+        PredictBarVolume = %s, 
+        ScoreRnnModel = %s, 
+        TradePoint = %s where date = %s;'''
 
         parsers = (self.predict_CycleChange, self.predict_CyclePrice, self.predict_length, self.predict_bar_change,
                    self.predict_bar_price, self.predict_BarVolume, self.trend_score, self.tradAction,
@@ -891,8 +906,30 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
 
 
 if __name__ == '__main__':
-    month_ = '2022-02'
-    _date = '2024-01-10'
-    stock_ = '002475'
-    rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=False, check_date=_date)
-    rm.single_stock()
+    # month_ = '2022-02'
+    # _date = '2024-01-15'
+    stock_ = '002466'
+    # rm = PredictionCommon(stock=stock_, month_parsers=month_, monitor=False, check_date=_date)
+    # rm.single_stock()
+    list_timing_15m_minute = ['09:45:00', '10:00:00', '10:15:00', '10:30:00', '10:45:00',
+                              '11:00:00', '11:15:00', '11:30:00',
+                              '13:15:00', '13:30:00', '13:45:00',
+                              '14:00:00', '14:15:00', '14:30:00',
+                              '14:45:00', '15:00:00']
+
+    _date = '2024-01-15'
+    date_ = '2024-01-16'
+
+    data_15m = StockData15m.load_15m(stock_)
+    data_15m = data_15m[(data_15m['date'] > pd.to_datetime(_date)) & (data_15m['date'] < pd.to_datetime(date_))]
+
+    new_end_15m_timing = data_15m.iloc[-1]['date']
+    new_end_minute = new_end_15m_timing.time().strftime('%H:%M:%S')
+
+    # data_15m['minute'] = data_15m['date'].dt.strftime('%H:%M:%S')
+
+    print(F'new_end_15m_timing: {new_end_15m_timing}')
+    print(F'new_end_minute: {new_end_minute}')
+
+    if new_end_minute in list_timing_15m_minute:
+        print('Yes')

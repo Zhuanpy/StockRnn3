@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from DB_MySql import MysqlAlchemy as Alc
-from DB_MySql import execute_sql
+from DB_MySql import execute_sql, execute_sql_return_value
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -30,9 +30,18 @@ class StockData15m:
 
     @classmethod
     def delete_data_from_15m_data(cls, stock_code: str, sql: str, params: tuple):
-        # f'''delete from %s.`%s` where date='%s';'''
         sql = f'delete from {cls.db_15m}.{stock_code} {sql};'
         execute_sql(cls.db_15m, sql, params)
+
+    @classmethod
+    def get_data_15m_data_end_date(cls, stock_code: str):
+        # SELECT MAX(C) FROM A.B; sql1 = f'''select * from {cls.db_15m}.`{stock_code}` where date in (select max(
+        # date) from {cls.db_15m}.`{stock_code}`);'''
+        sql1 = f'SELECT MAX(date) FROM {cls.db_15m}.`{stock_code}`;'
+        parser = ()
+        r = execute_sql(cls.db_15m, sql1, parser)
+        r = r[0][0]
+        return r
 
 
 class StockData1m:
@@ -120,6 +129,11 @@ class StockPoolData:
         Alc.pd_append(data, cls.db_pool, cls.tb_poolCount)
 
     @classmethod
+    def set_table_poolCount(cls, sql, params: tuple):
+        sql = f'UPDATE {cls.db_pool}.{cls.tb_poolCount} SET {sql}'
+        execute_sql(cls.db_pool, sql, params)
+
+    @classmethod
     def set_table_to_board(cls, sql, params: tuple):
         sql = f'UPDATE {cls.db_pool}.{cls.tb_board} SET {sql}'
         execute_sql(cls.db_pool, sql, params)
@@ -180,6 +194,7 @@ class LoadNortFunds:
 
 
 class LoadRnnModel:
+
     db_rnn = 'rnn_model'
 
     tb_train_record = 'trainrecord'

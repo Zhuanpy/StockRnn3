@@ -9,6 +9,9 @@ from code.Evaluation.CountPool import PoolCount
 from Rnn_utils import reset_id_time, reset_record_time, date_range
 import logging
 
+# logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s', level=logging.info)
+logging.basicConfig(filename='error_log.txt', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+
 plt.rcParams['font.sans-serif'] = ['FangSong']
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -62,37 +65,41 @@ def stock_evaluate(day_, _num, num_, data, month_parsers, check_model):
     count = 0
 
     for index in range(_num, num_):
-
-        db = LoadRnnModel.db_rnn
-        tb = LoadRnnModel.tb_train_record
-
-        print(f'当前进度，剩余{num_ - _num - count}；')
-
         stock_ = data.loc[index, 'code']
         id_ = data.loc[index, 'id']
         check_date = pd.Timestamp('now').date()
 
+        print(f'当前进度，剩余{num_ - _num - count}； 当前股票：{stock_}')
         try:
 
             run = PredictionCommon(stock=stock_, month_parsers=month_parsers, monitor=False, check_date=day_)
             run.single_stock()
 
             if check_model:
-                sql2 = f''' ModelCheckTiming = '%s', ModelCheck = 'success', 
-                ModelError = 'success', ModelCheckTiming = '%s' where id=%s; '''
+                sql2 = f''' 
+                ModelCheckTiming = %s, 
+                ModelCheck = 'success', 
+                ModelError = 'success', 
+                ModelCheckTiming = %s where id = %s; 
+                '''
 
                 parser = (pd.Timestamp.now(), check_date, id_)
                 LoadRnnModel.set_table_train_record(sql2, parser)
 
         except Exception as ex:
-
-            print(f'Error: {ex}')
+            logging_test = f'stock code {stock_} Error: {ex}'
+            # logging.info(logging_test)
+            print(logging_test)
+            logging.error("Error occurred: %s", str(ex))
 
             if check_model:
-                sql2 = f''' ModelCheck = 'error', ModelError = 'error',
-                ModelCheckTiming = '{check_date}' where id={id_};'''
+                sql2 = f'''
+                ModelCheck = 'error',
+                ModelError = 'error',
+                ModelCheckTiming = %s where id = %s;
+                '''
 
-                parser = (db, tb, check_date, id_)
+                parser = (check_date, id_)
                 LoadRnnModel.set_table_train_record(sql2, parser)
 
         count += 1
@@ -155,6 +162,8 @@ class RMHistoryCheck:
     def loop_by_date(self):
 
         list_day = date_range(self._date, self.date_)
+        # print(list_day)
+        # exit()
         reset_record_time(list_day[0])
 
         for day_ in list_day:
@@ -176,6 +185,6 @@ class RMHistoryCheck:
 
 
 if __name__ == '__main__':
-    start_ = '2022-10-26'
+    start_ = '2024-01-15'
     rm = RMHistoryCheck(_date=start_)
     rm.loop_by_date()
