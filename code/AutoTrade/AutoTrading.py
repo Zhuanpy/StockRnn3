@@ -1,5 +1,5 @@
 import sys
-from code.MySql.LoadMysql import StockPoolData
+from code.MySql.DataBaseStockPool import TableStockPool # StockPoolData
 from pywinauto import Application
 from pywinauto.keyboard import send_keys
 import pyautogui as ag
@@ -215,7 +215,7 @@ class TradePoolFaker:
 
     @classmethod
     def buy_pool(cls, score=-5, show_pool=False):
-        pool = StockPoolData.load_StockPool()
+        pool = TableStockPool.load_StockPool()
         pool = pool[['id', 'name', 'code', 'Classification', 'Industry', 'RnnModel', 'close', 'Position', 'BoardBoll']]
         pool = pool[(pool['RnnModel'] < score) &
                     (~pool['Classification'].isin(['创业板', '科创板'])) &
@@ -241,7 +241,7 @@ class TradePoolFaker:
 
     @classmethod
     def sell_pool(cls):
-        position = StockPoolData.load_StockPool()
+        position = TableStockPool.load_StockPool()
         position = position[(position['Position'] == 1) &
                             (position['TradeMethod'] == 1)]
 
@@ -275,19 +275,19 @@ class TradePoolReal:
         return int(num_)
 
     def bottom_down_data(self):
-        data_ = StockPoolData.load_StockPool()
+        data_ = TableStockPool.load_StockPool()
         data_ = data_[(data_['Trends'] == -1) &
                       (data_['RnnModel'] < -4.5)]
         return data_
 
     def bottom_up_data(self):
-        data_ = StockPoolData.load_StockPool()
+        data_ = TableStockPool.load_StockPool()
         data_ = data_[(data_['Trends'] == 1) &
                       (data_['RnnModel'] <= 1.5)]
         return data_
 
     def position_data(self):
-        data_ = StockPoolData.load_StockPool()
+        data_ = TableStockPool.load_StockPool()
         data_ = data_[(data_['Position'] == 1) &
                       (data_['TradeMethod'] <= 1)]
         return data_

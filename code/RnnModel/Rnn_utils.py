@@ -53,11 +53,11 @@ def rnn_data_path(month: str):
     return os.path.join(file_root(), 'data', 'RnnData', month)
 
 
-def pre_month_data_list(month: str, classification: str) -> list:
+def rnn_data_pre_month_list(month: str, class_file: str) -> tuple:
     """
     获取以前月份列表
     :param month: 月份
-    :classification: 类型 ， 如 weigh , train_data ;
+    :class_file: 文件夹类型 ， 如 weigh , train_data ;
     :return: 上个月份列表
 
     获取RNN 文件夹名， 大到小并且排序；
@@ -67,43 +67,52 @@ def pre_month_data_list(month: str, classification: str) -> list:
 
     root_path = os.path.join(file_root(), 'data', 'RnnData')
 
-    folder_names = [folder for folder in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, folder))]
+    # 获取RnnData文件夹下全部月份文件夹名称
+    folder_names = sorted(
+        [folder for folder in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, folder))], reverse=True)
 
+    # 删除CommonFile文件夹
     folder_names.remove('CommonFile')
-    folder_names.sort()
-    folder_names.reverse()
 
-    index_to_remove = folder_names.index(month)
-    folder_names = folder_names[index_to_remove + 1:]
+    # 移除当前月份及以后月份的文件夹
+    folder_names = folder_names[folder_names.index(month) + 1:]
 
-    # 再添加路径
-    for m in folder_names:
+    # 构建文件夹路径列表
+    folder_path = [os.path.join(root_path, M, class_file) for M in folder_names]
 
-        try:
-            folder_names[folder_names.index(m)] = os.path.join(root_path, m, classification)
-
-        except ValueError:
-            pass  # 月份不存在于列表中，不进行任何操作
-
-    return folder_names
+    return folder_path, folder_names
 
 
 def find_file_in_paths(month: str, classification: str, file_name: str):
-    folder_paths = pre_month_data_list(month, classification)
+    """ 找出输入月份的上一个历史数据文件夹名称及月份名称.
+      Parameters:
+          month (str): 输入月份；
+          classification (str): 文件类型，文件夹名称；
+          file_name (str): 文件名称；
 
-    for folder_path in folder_paths:
-        file_path = os.path.join(folder_path, file_name)
 
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return folder_path
+      Returns:
+          folder_path: 文件所在文件夹路径.
+          M ： 文件所在文件夹月份名称.
+    """
+
+    folder_paths, month_list = rnn_data_pre_month_list(month, classification)
+
+    for folder_path, M in zip(folder_paths, month_list):
+
+        folder_path = os.path.join(folder_path, file_name)
+
+        if os.path.exists(folder_path) and os.path.isfile(folder_path):
+            return folder_path, M
             # 如果找到第一个存在的路径，立即返回并结束循环
 
-    return False
+    return False, False
 
 
 if __name__ == '__main__':
     m = '2023-12'
     c = 'weight'
     f = 'weight_bar_volume_000651.h5'
-    p = find_file_in_paths(m, c, f)
-    print(p)
+    file_path, pre_month = find_file_in_paths(m, c, f)
+    print(file_path)
+    print(pre_month)

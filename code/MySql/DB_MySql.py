@@ -36,6 +36,7 @@ def execute_sql(database: str, sql: str, params: tuple):
         with connection, cursor:
             if not params:
                 cursor.execute(sql)
+
             else:
                 cursor.execute(sql, params)
 

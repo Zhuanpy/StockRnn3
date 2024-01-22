@@ -3,7 +3,7 @@ import time
 import pandas as pd
 from code.MySql.LoadMysql import LoadFundsAwkward as aw
 from code.MySql.LoadMysql import RecordStock
-from code.MySql.LoadMysql import StockPoolData as pl
+from code.MySql.DataBaseStockPool import TableStockPool
 from DlEastMoney import DownloadData as dle
 import logging
 
@@ -146,7 +146,7 @@ class AnalysisFundsAwkward:
     def __init__(self, dl_date):
 
         self.DlDate = pd.to_datetime(dl_date)
-        self.pool = pl.load_StockPool()
+        self.pool = TableStockPool.load_StockPool()
 
         self.awkward = aw.load_fundsAwkward()
         self.awkward = self.awkward[self.awkward['Selection'] == 1]
@@ -181,7 +181,7 @@ class AnalysisFundsAwkward:
             # 更新股票池基金得分
             sql = f'''FundsAwkward = %s where id = '%s' ;'''
             parser = (score, id_)
-            pl.set_table_to_pool(sql, params=parser)
+            TableStockPool.set_table_to_pool(sql, params=parser)
             self.count_dic[stock_name] = score
 
         print(f'Success count: {self.count_dic}')
@@ -224,7 +224,7 @@ class AnalysisFundsAwkward:
             # 更新股票池基金得分
             sql = f'''FundsAwkward= %s where id='%s';'''
             parser = (score, stock_id)
-            pl.set_table_to_pool(sql, parser)
+            TableStockPool.set_table_to_pool(sql, parser)
             self.count_dic[stock_name] = score
 
         print(f'Success count: {self.count_dic}')

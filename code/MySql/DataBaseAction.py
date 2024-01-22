@@ -4,7 +4,7 @@ import multiprocessing
 
 def load_tables(db: str, upper=True):
     sql = f'''SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='{db}'; '''
-    params = (db, )
+    params = ()
     li = execute_sql(db, sql, params)
     li = list(li)
     li = [i[0].upper() for i in li]

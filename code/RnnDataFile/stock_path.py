@@ -2,6 +2,7 @@ from file_path import *
 
 
 class StockDataPath:
+    rnn_data_file = 'RnnData'
 
     @classmethod
     def monitor_1m_data_path(cls, stock_code):
@@ -10,17 +11,17 @@ class StockDataPath:
 
     @classmethod
     def json_data_path(cls, month_parser: str, stock_code: str):
-        r = os.path.join(data_path, 'RnnData', month_parser, 'json', f'{stock_code}.json')
+        r = os.path.join(data_path, cls.rnn_data_file, month_parser, 'json', f'{stock_code}.json')
         return r
 
     @classmethod
     def model_path(cls, month_parser: str, file_name: str):
-        r = os.path.join(data_path, 'RnnData', month_parser, 'model', file_name)
+        r = os.path.join(data_path, cls.rnn_data_file, month_parser, 'model', file_name)
         return r
 
     @classmethod
     def model_weight_path(cls, month_parser: str, file_name: str):
-        r = os.path.join(data_path, 'RnnData', month_parser, 'weight', file_name)
+        r = os.path.join(data_path, cls.rnn_data_file, month_parser, 'weight', file_name)
         return r
 
     @classmethod
@@ -30,7 +31,12 @@ class StockDataPath:
 
     @classmethod
     def month_1m_data_path(cls, month_parser: str, stock_code: str):
-        r = os.path.join(data_path, 'RnnData', month_parser, '1m', f'{stock_code}.csv')
+        r = os.path.join(data_path, cls.rnn_data_file, month_parser, '1m', f'{stock_code}.csv')
+        return r
+
+    @classmethod
+    def train_data_path(cls, month_parser: str, file_name: str):
+        r = os.path.join(data_path, cls.rnn_data_file, month_parser, 'train_data', file_name)
         return r
 
 
