@@ -173,14 +173,15 @@ class ReadSaveFile:
     @classmethod
     def read_json(cls, months: str, code: str):
         path = StockDataPath.json_data_path(months, code)
+
         try:
             with open(path, 'r') as lf:
                 j = json.load(lf)
 
-        except FileNotFoundError:
-            j = {}
-            cls.save_json(j, months, code)
-        return j
+            return j
+
+        except ValueError:
+            return None
 
     @classmethod
     def read_json_by_path(cls, path):

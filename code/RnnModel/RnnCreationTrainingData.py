@@ -15,7 +15,7 @@ class RMTrainingData:
         self.start_date = start_
 
     def single_stock(self, stock: str):
-        calculation = TrainingDataCalculate(stock, self.month, self.start_date)
+        calculation = TrainingDataCalculate(stock, self.month)
         calculation.calculation_single()
 
     def update_train_records(self, records):
@@ -59,7 +59,7 @@ class RMTrainingData:
                   f'\n当前股票：{stock_};')
 
             try:
-                run = TrainingDataCalculate(stock_, self.month, self.start_date)
+                run = TrainingDataCalculate(stock_, self.month)
                 run.calculation_read_from_sql()
 
                 sql = f'''ModelData = 'success', ModelDataTiming = %s where id = %s; '''

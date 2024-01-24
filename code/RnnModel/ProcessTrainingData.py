@@ -1,152 +1,33 @@
-# -*- coding: utf-8 -*-
-import numpy as np
+from code.MySql.LoadMysql import LoadRnnModel
 import pandas as pd
 
-from code.MySql.DataBaseStockData1m import StockData1m
-from code.MySql.DataBaseStockData15m import StockData15m
+"""
+处理训练数据： 
+一： 处理 1分钟数据
+1. 考虑第一次训练， 日后继续训练; 这里得考虑数据第一次采用，日后怎么避免重复和漏用； 
+2. 保存1分钟开始 结束参数， 保存 15分钟信号名；
+
+二： 处理 15分钟数据
+
+3. 保存15分钟数据参数，特别是极大 极小，中位数等 ；
+
+三： 处理模型数据
+4. 模型数据保存 及 记录； 从什么日期及信号名开始保存 ； 从什么日期 及 信号名开始结束保存
+
+
+"""
 from code.MySql.sql_utils import Stocks
-from code.parsers.RnnParser import *
-from code.Normal import ReadSaveFile, ResampleData
-from code.Signals.StatisticsMacd import SignalMethod
-from code.RnnDataFile.stock_path import StockDataPath
+from code.MySql.DataBaseStockData1m import StockData1m
+from code.Normal import ReadSaveFile
 
-# from root_ import file_root
-from Rnn_utils import find_file_in_paths
-
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 5000)
-
-
-class ModelData:
-    """
-    1. 处理模型数据
-    2. 模型数据准备
-    """
-
-    def __init__(self):
-
-        # self.root = file_root()
-        self.month = None
-        self.stock_code = None
-        self.data_15m = None
-
-        self.x_columns = XColumn()
-        self.y_column = YColumn()
-        self.model_name = ModelName
-
-    def load_pre_month_existing_train_data(self, model_name: str):
-
-        """ 导入以前的数据
-        find_file_in_paths
-        以前有的月份可能是空的，可能有，这里用一个 try 函数去尝试读取，如果能读取到则返回 前数据文件夹；
-        :param model_name: 模型名字
-        """
-
-        file_x = f'{model_name}_{self.stock_code}_x.npy'
-        file_y = f'{model_name}_{self.stock_code}_y.npy'
-
-        try:
-            # 前数据读取
-            file_path_x, pre_month = find_file_in_paths(self.month, 'train_data', file_x)
-            file_path_y, pre_month = find_file_in_paths(self.month, 'train_data', file_y)
-            data_x = np.load(file_path_x, allow_pickle=True)
-            data_y = np.load(file_path_y, allow_pickle=True)
-            return data_x, data_y, pre_month
-
-        except FileNotFoundError:
-            return np.zeros([0]), np.empty([0]), None
-
-    def _save_data(self, model_name: str, data_x, data_y):
-        file_x = f'{model_name}_{self.stock_code}_x.npy'
-        file_y = f'{model_name}_{self.stock_code}_y.npy'
-
-        file_path_x = StockDataPath.train_data_path(self.month, file_x)
-        file_path_y = StockDataPath.train_data_path(self.month, file_y)
-
-        np.save(file_path_x, data_x)
-        np.save(file_path_y, data_y)
-
-    def data_common(self, model_name: str, column_x, column_y, height=30, width=30):  # width=w2, height=h1
-        """  这里需要对参数进行说明：
-        :parse model_name: 模型名字
-        :column_x: column x 名称集，
-        :column_y: column y 名称集，
-        :height: & width:  把数据拓展为 30*30 的矩阵, 方便训练
-
-        """
-
-        data_x, data_y, pre_month = self.load_pre_month_existing_train_data(model_name)  # 加载以前数据
-
-        # 整理数据
-        data_ = self.data_15m.dropna(subset=[SignalChoice])
-
-        for st in data_[SignalTimes]:
-            x = self.data_15m[self.data_15m[SignalTimes] == st][column_x].dropna(how='any').tail(height)
-            y = self.data_15m[self.data_15m[SignalTimes] == st][column_y].dropna(how='any').tail(1)
-
-            if not x.shape[0] or not y.shape[0]:
-                continue
-
-            x = pd.concat([x[[Signal]], x], axis=1)
-            x = x.to_numpy()
-
-            # 计算填充数据  30*30 矩阵， 数据不足0补充
-            h = height - x.shape[0]
-            w = width - x.shape[1]
-
-            ht = h // 2  # height top
-            hl = h - ht  # height bottom
-
-            wl = w // 2  # width left
-            wr = w - wl  # width right
-
-            x = np.pad(x, ((ht, hl), (wr, wl)), 'constant', constant_values=(0, 0))
-            x.shape = (1, height, width, 1)
-            y = y.to_numpy()
-
-            # 判断储存 x y data
-            if data_x.shape[0]:
-                data_x = np.append(data_x, x, axis=0)
-                data_y = np.append(data_y, y, axis=0)
-
-            else:
-                data_x = x
-                data_y = y
-
-        # 新数据储存
-        self._save_data(model_name, data_x, data_y)
-
-        print(f'{model_name}, shape: {data_x.shape};')
-
-    def data_cycle_length(self):
-        x = self.x_columns[0]
-        y = self.y_column[0]
-        self.data_common(self.model_name[0], x, y)
-
-    def data_cycle_change(self):
-        x = self.x_columns[1]
-        y = self.y_column[1]
-        self.data_common(self.model_name[1], x, y)
-
-    def data_bar_change(self):
-        x = self.x_columns[2]
-        y = self.y_column[2]
-        self.data_common(self.model_name[2], x, y)
-
-    def data_bar_volume(self):
-        x = self.x_columns[3]
-        y = self.y_column[3]
-        self.data_common(self.model_name[3], x, y)
-
-
-class TrainingDataCalculate(ModelData):
+class TrainingDataCalculate():
     """
     训练数据处理
     """
 
     def __init__(self, stock: str, month: str,):  # _month
 
-        ModelData.__init__(self)
+        # ModelData.__init__(self)
 
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
@@ -163,6 +44,24 @@ class TrainingDataCalculate(ModelData):
         self.start_date_1m = None
 
         self.daily_volume_max = None
+
+    def load_start_date(self):
+        json_data = ReadSaveFile.read_json(self.month, self.stock_code)
+
+        if json_data:
+            start_date = json_data
+            return
+
+        start_date =
+
+        return start_date
+
+
+    def load_1m_data(self):
+        start_date = self.load_start_date()  # 要么从json 数据中读取 ；  要么就从股票池中读取第一个天
+        # 导入数据从开始日期开始
+        data_1m = StockData1m.load_1m(self.stock_code, start_date)
+
 
     def rnn_parser_data(self):
 
@@ -561,8 +460,82 @@ class TrainingDataCalculate(ModelData):
             self.data_common(model_name, x, y)
 
 
+
+
+
+
+
+
+
+class RMTrainingData:
+
+    def __init__(self, month: str):  # _month
+        self.month = month
+
+    def single_stock(self, stock: str):
+        calculation = TrainingDataCalculate(stock, self.month)
+        calculation.calculation_single()
+
+    def update_train_records(self, records):
+        """更新训练表格记录"""
+        ids = tuple(records.id)
+
+        sql = f'''ParserMonth = %s, ModelData = 'pending' where id in %s;'''
+
+        params = (self.month, ids)
+        LoadRnnModel.set_table_train_record(sql, params)
+
+    def all_stock(self):
+
+        load = LoadRnnModel.load_train_record()
+
+        records = load[load['ParserMonth'] == self.month]
+
+        # 更新训练记录中的状态
+        if records.empty:
+            records = load.copy()
+            records['ParserMonth'] = self.month
+            records['ModelData'] = 'pending'
+            records['ModelCheck'] = 'pending'
+            records['ModelError'] = 'pending'
+
+            self.update_train_records(records)
+
+        # 查看等待数据
+        records = records[~records['ModelData'].isin(['success'])].reset_index(drop=True)
+
+        if records.empty:
+            print(f'{self.month}月训练数据创建完成')
+            return False  # 结束运行，因为 records 为空
+
+        for i, row in records.iterrows():
+            stock_ = row['name']
+            id_ = row['id']
+
+            print(f'\n计算进度：'
+                  f'\n剩余股票: {(records.shape[0] - i)} 个; 总股票数: {records.shape[0]}个;'
+                  f'\n当前股票：{stock_};')
+
+            try:
+                run = TrainingDataCalculate(stock_, self.month)
+                run.calculation_read_from_sql()
+
+                sql = f'''ModelData = 'success', ModelDataTiming = %s where id = %s; '''
+
+                params = (pd.Timestamp('now').date(), id_)
+                LoadRnnModel.set_table_train_record(sql, params)
+
+            except Exception as ex:
+                print(f'Model Data Create Error: {ex}')
+                sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = %s; '''
+                params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, id_)
+                LoadRnnModel.set_table_train_record(sql, params)
+
+        return True
+
+
 if __name__ == '__main__':
     month_ = '2023-01'
     start_d = '2018-01-01'
-    # running = TrainingDataCalculate(month_, start_d)
-    # running.all_stock()
+    running = RMTrainingData(month_)
+    running.all_stock()
