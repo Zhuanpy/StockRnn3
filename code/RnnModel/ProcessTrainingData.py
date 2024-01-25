@@ -18,11 +18,12 @@ import pandas as pd
 """
 from code.MySql.sql_utils import Stocks
 from code.MySql.DataBaseStockData1m import StockData1m
-from code.Normal import ReadSaveFile
 from code.RnnDataFile.JsonData import LoadJsonData
-
+from code.parsers.RnnParser import *
+from code.Normal import ReadSaveFile, ResampleData
 
 class TrainingDataCalculate():
+
     """
     训练数据处理
     """
@@ -34,6 +35,8 @@ class TrainingDataCalculate():
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.month = month
+        self.pre_month = ''  # 前一个月数据
+
         self.data_1m = None
         self.data_15m = None
         self.times_data = None
@@ -48,8 +51,9 @@ class TrainingDataCalculate():
         self.daily_volume_max = None
 
     def load_start_date(self):
+
         try:
-            json_data, pre_json_parser_month = LoadJsonData.find_json_parser_by_month_folder(self.month, self.stock_code)
+            json_data, pre_json_parser_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
             start_date = json_data['TrainingData']['EndSignal']['StartTime']  # 提取上次训练数据，截止日期
             return start_date
 
@@ -63,17 +67,6 @@ class TrainingDataCalculate():
         data_1m = StockData1m.load_1m(self.stock_code, start_date)
 
         return data_1m
-
-    def rnn_parser_data(self):
-
-        data = ReadSaveFile.read_json(self.month, self.stock_code)
-
-        if not data:
-            data[self.stock_code] = {}
-            ReadSaveFile.save_json(data, self.month, self.stock_code)
-            return data
-
-        return data
 
     def stand_save_parser(self, data, column, drop_duplicates, drop_column):
 
@@ -111,12 +104,10 @@ class TrainingDataCalculate():
         # 查看参数
         try:
             """ 读取历史的参数json数据 """
-            file_name = f"{self.stock_code}.json"
-            file_path, pre_month = find_file_in_paths(self.month, 'json', file_name)
+            parser_data, pre_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
 
-            parser_data = ReadSaveFile.read_json_by_path(file_path)
-            pre_high = parser_data[self.stock_code][column]['num_max']
-            pre_low = parser_data[self.stock_code][column]['num_min']
+            pre_high = parser_data['TrainingData']['dataDaily'][column]['num_max']
+            pre_low = parser_data['TrainingData']['dataDaily'][column]['num_min']
 
         except ValueError:
             pre_high = high
@@ -133,9 +124,9 @@ class TrainingDataCalculate():
         """ 数据归一化 """
         data[column] = (data[column] - low) / (high - low)
 
-        parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
-        parser_data[column] = {'num_max': high, 'num_min': low}
-        ReadSaveFile.save_json(parser_data, self.month, self.stock_code)  # 更新参数
+        current_parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
+        current_parser_data['TrainingData']['dataDaily'][column] = {'num_max': high, 'num_min': low}
+        ReadSaveFile.save_json(current_parser_data, self.month, self.stock_code)  # 更新参数
 
         return data
 
@@ -218,8 +209,10 @@ class TrainingDataCalculate():
 
         return self.data_15m
 
-    def first_calculate(self):
-        self.data_15m = ResampleData.resample_1m_data(data=self.data_1m, freq=self.freq)
+    def first_calculate(self, data_1m):
+
+        self.data_15m = ResampleData.resample_1m_data(data=data_1m, freq=self.freq)
+
         self.data_15m = SignalMethod.signal_by_MACD_3ema(self.data_15m, self.data_1m).set_index('date', drop=True)
 
         data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
