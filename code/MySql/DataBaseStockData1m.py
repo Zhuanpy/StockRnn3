@@ -11,7 +11,14 @@ class StockData1m:
     """
 
     @classmethod
-    def load_1m(cls, code_: str, _year):
+    def load_1m(cls, code_: str, _year: str):
+        """
+         Parameters:
+             code_: stock code;
+             _year: data start year; 要求导入数据的开始年； 可以是 四位数年份， 或者带年份的日期；
+
+         Returns:
+        """
 
         y = int(pd.Timestamp('today').year)
 

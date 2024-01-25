@@ -19,16 +19,18 @@ import pandas as pd
 from code.MySql.sql_utils import Stocks
 from code.MySql.DataBaseStockData1m import StockData1m
 from code.Normal import ReadSaveFile
+from code.RnnDataFile.JsonData import LoadJsonData
+
 
 class TrainingDataCalculate():
     """
     训练数据处理
     """
 
-    def __init__(self, stock: str, month: str,):  # _month
+    def __init__(self, stock: str, month: str, ):  # _month
 
         # ModelData.__init__(self)
-
+        self.stock_start_year = '2018-01-01'
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.month = month
@@ -46,22 +48,21 @@ class TrainingDataCalculate():
         self.daily_volume_max = None
 
     def load_start_date(self):
-        json_data = ReadSaveFile.read_json(self.month, self.stock_code)
+        try:
+            json_data, pre_json_parser_month = LoadJsonData.find_json_parser_by_month_folder(self.month, self.stock_code)
+            start_date = json_data['TrainingData']['EndSignal']['StartTime']  # 提取上次训练数据，截止日期
+            return start_date
 
-        if json_data:
-            start_date = json_data
-            return
-
-        start_date =
-
-        return start_date
-
+        except ValueError:
+            return self.stock_start_year
 
     def load_1m_data(self):
         start_date = self.load_start_date()  # 要么从json 数据中读取 ；  要么就从股票池中读取第一个天
+
         # 导入数据从开始日期开始
         data_1m = StockData1m.load_1m(self.stock_code, start_date)
 
+        return data_1m
 
     def rnn_parser_data(self):
 
@@ -458,13 +459,6 @@ class TrainingDataCalculate():
             y = self.y_column[i]
             model_name = self.model_name[i]
             self.data_common(model_name, x, y)
-
-
-
-
-
-
-
 
 
 class RMTrainingData:

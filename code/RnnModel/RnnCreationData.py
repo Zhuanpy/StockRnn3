@@ -10,7 +10,7 @@ from code.Normal import ReadSaveFile, ResampleData
 from code.Signals.StatisticsMacd import SignalMethod
 from code.RnnDataFile.stock_path import StockDataPath
 
-# from root_ import file_root
+from root_ import file_root
 from Rnn_utils import find_file_in_paths
 
 pd.set_option('display.max_columns', None)
@@ -25,7 +25,7 @@ class ModelData:
 
     def __init__(self):
 
-        # self.root = file_root()
+        self.root = file_root()
         self.month = None
         self.stock_code = None
         self.data_15m = None
@@ -144,10 +144,9 @@ class TrainingDataCalculate(ModelData):
     训练数据处理
     """
 
-    def __init__(self, stock: str, month: str,):  # _month
+    def __init__(self, stock: str, month: str, start_date: str, ):  # _month
 
         ModelData.__init__(self)
-
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.month = month
@@ -155,25 +154,20 @@ class TrainingDataCalculate(ModelData):
         self.data_15m = None
         self.times_data = None
 
-        self.record_json_data = None
         self.RecordStartDate = None
         self.RecordEndDate = None
 
         self.freq = '15m'
+        self.start_date = start_date
         self.start_date_1m = None
 
         self.daily_volume_max = None
 
     def rnn_parser_data(self):
-
         data = ReadSaveFile.read_json(self.month, self.stock_code)
-
-        if not data:
+        if self.stock_code not in data:
             data[self.stock_code] = {}
             ReadSaveFile.save_json(data, self.month, self.stock_code)
-            return data
-
-        return data
 
     def stand_save_parser(self, data, column, drop_duplicates, drop_column):
 
@@ -334,7 +328,7 @@ class TrainingDataCalculate(ModelData):
             file_path = find_file_in_paths(self.month, 'json', file_name)
 
             parser_data = ReadSaveFile.read_json_by_path(file_path)
-            pre_daily_volume_max = parser_data[DailyVolEma]
+            pre_daily_volume_max = parser_data[self.stock_code][DailyVolEma]
 
         except:
             pre_daily_volume_max = daily_volume_max
@@ -440,36 +434,32 @@ class TrainingDataCalculate(ModelData):
 
         return self.data_15m
 
-    def data_1m_calculate(self, ):
+    def data_1m_calculate(self):
 
-        """
-        :param
-        :record_stat: datatime, 输入datatime 类型， 参考日期 ；
-        读取一分钟数据，如果历史训练数据有记录已经计算的数据，则从结束日期开始算，如果没有，则从保存历史数据开始算；
-        """
+        self.rnn_parser_data()
 
         # 判断是否有指定的 RecordStartDate
-        if self.record_json_data:
-            start_date = self.record_json_data['model']['EndDate']
+        if self.RecordStartDate:
+            start_date = self.RecordStartDate
 
         else:
-            start_date = ''  # todo 读取股票池数据，数据开始日期 ；
+            start_date = self.start_date
 
-        # 加载1分钟数据, 从哪个日期开始加载 ？
-        data_1m = StockData1m.load_1m(self.stock_code, start_date)
-        data_1m = data_1m.sort_values(by=['date'])
+        # 加载1分钟数据并进行筛选
+        self.data_1m = StockData1m.load_1m(self.stock_code, start_date)
+        self.data_1m = self.data_1m.sort_values(by=['date'])
 
         # 提取数据起始日期
-        self.start_date_1m = data_1m.iloc[0]['date']
+        self.start_date_1m = self.data_1m.iloc[0]['date']
 
         # 筛选数据时间范围
-        data_1m = data_1m[(data_1m['date'] > (pd.to_datetime(start_date) + pd.Timedelta(days=-30))) &
-                          (data_1m['date'] < (pd.to_datetime(self.month) + pd.Timedelta(days=-30)))]
+        self.data_1m = self.data_1m[(self.data_1m['date'] > (pd.to_datetime(start_date) + pd.Timedelta(days=-30))) &
+                                    (self.data_1m['date'] < (pd.to_datetime(self.month) + pd.Timedelta(days=-30)))]
 
         # 去除重复值和缺失值
-        data_1m = data_1m.dropna(subset=['date']).drop_duplicates(subset=['date']).reset_index(drop=True)
+        self.data_1m = self.data_1m.dropna(subset=['date']).drop_duplicates(subset=['date']).reset_index(drop=True)
 
-        return data_1m
+        return self.data_1m
 
     def save_15m_data(self):
 
@@ -510,13 +500,10 @@ class TrainingDataCalculate(ModelData):
 
         ReadSaveFile.save_json(records, self.month, self.stock_code)  # 更新参数
 
-    def data_calculate(self):
+    def data_15m_calculate(self):
 
-        # 读取json参数
-        self.record_json_data = self.rnn_parser_data()
-
-        # 导入 1m 数据， 更具参数选择；  读取参考的日期
-        self.data_1m = self.data_1m_calculate()
+        # # 1m 数据选择
+        self.data_1m_calculate()
 
         self.data_15m = self.first_calculate()
 
@@ -539,7 +526,7 @@ class TrainingDataCalculate(ModelData):
         except ValueError:
             pass
 
-        self.data_15m = self.data_calculate()
+        self.data_15m = self.data_15m_calculate()
 
         for i in range(4):
             x = self.x_columns[i]
