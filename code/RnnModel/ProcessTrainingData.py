@@ -18,9 +18,13 @@ import pandas as pd
 """
 from code.MySql.sql_utils import Stocks
 from code.MySql.DataBaseStockData1m import StockData1m
-from code.RnnDataFile.JsonData import LoadJsonData
+from code.RnnDataFile.JsonData import LoadJsonData, save_json
 from code.parsers.RnnParser import *
 from code.Normal import ReadSaveFile, ResampleData
+from code.Signals.StatisticsMacd import SignalMethod
+import numpy as np
+from code.MySql.DataBaseStockData15m import StockData15m
+
 
 class TrainingDataCalculate():
 
@@ -50,18 +54,18 @@ class TrainingDataCalculate():
 
         self.daily_volume_max = None
 
-    def load_start_date(self):
+        self.x_columns = XColumn()
+        self.y_column = YColumn()
+        self.model_name = ModelName
+
+    def load_1m_data(self):
 
         try:
             json_data, pre_json_parser_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
             start_date = json_data['TrainingData']['EndSignal']['StartTime']  # 提取上次训练数据，截止日期
-            return start_date
 
         except ValueError:
-            return self.stock_start_year
-
-    def load_1m_data(self):
-        start_date = self.load_start_date()  # 要么从json 数据中读取 ；  要么就从股票池中读取第一个天
+            start_date = self.stock_start_year
 
         # 导入数据从开始日期开始
         data_1m = StockData1m.load_1m(self.stock_code, start_date)
@@ -140,7 +144,7 @@ class TrainingDataCalculate():
         data[column] = (data[column] - num_min) / (num_max - num_min)
         return data
 
-    def column_stand(self):
+    def column_stand(self, data_15m):
         # 保存 daily_volume_max
 
         if not self.daily_volume_max:
@@ -178,7 +182,8 @@ class TrainingDataCalculate():
             column = i[0]
             drop_duplicates = i[1]
             drop_column = i[2]
-            self.data_15m = self.stand_save_parser(self.data_15m, column, drop_duplicates, drop_column)
+            # todo 验证保存参数的正确性
+            data_15m = self.stand_save_parser(data_15m, column, drop_duplicates, drop_column)
 
         read_dict = {preCycle1mVolMax1: Cycle1mVolMax1,
                      preCycle1mVolMax5: Cycle1mVolMax5,
@@ -186,13 +191,14 @@ class TrainingDataCalculate():
                      preCycleAmplitudeMax: CycleAmplitudeMax}
 
         for key, value in read_dict.items():
-            self.data_15m = self.stand_read_parser(self.data_15m, key, value)
+            # todo 验证保存参数的正确性
+            data_15m = self.stand_read_parser(data_15m, key, value)
 
-        self.data_15m = self.data_15m.dropna(subset=[Signal])
+        data_15m = data_15m.dropna(subset=[Signal])
 
-        last_signal_times = self.data_15m.iloc[-1][SignalTimes]
+        last_signal_times = data_15m.iloc[-1][SignalTimes]
 
-        self.data_15m = self.data_15m[self.data_15m[SignalTimes] != last_signal_times]
+        data_15m = data_15m[data_15m[SignalTimes] != last_signal_times]
 
         # 选择模型数据
         all_columns = ['date', Signal, SignalTimes, SignalChoice,
@@ -205,49 +211,9 @@ class TrainingDataCalculate():
                        'volume', Bar1mVolMax5, preCycleAmplitudeMax,
                        'EndDaily1mVolMax5', nextCycleAmplitudeMax]
 
-        self.data_15m = self.data_15m[all_columns]
+        data_15m = data_15m[all_columns]
 
-        return self.data_15m
-
-    def first_calculate(self, data_1m):
-
-        self.data_15m = ResampleData.resample_1m_data(data=data_1m, freq=self.freq)
-
-        self.data_15m = SignalMethod.signal_by_MACD_3ema(self.data_15m, self.data_1m).set_index('date', drop=True)
-
-        data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
-        data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
-        data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
-
-        daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
-
-        # 读取旧参数
-        try:
-            file_name = f"{self.stock_code}.json"
-            file_path = find_file_in_paths(self.month, 'json', file_name)
-
-            parser_data = ReadSaveFile.read_json_by_path(file_path)
-            pre_daily_volume_max = parser_data[DailyVolEma]
-
-        except:
-            pre_daily_volume_max = daily_volume_max
-
-        # 使用 max 函数一行完成最大值的更新
-        self.daily_volume_max = max(daily_volume_max, pre_daily_volume_max)
-
-        # 简化日线数据处理
-        data_daily[DailyVolEmaParser] = self.daily_volume_max / data_daily[DailyVolEma]
-        data_daily = data_daily[['date', DailyVolEmaParser]].set_index('date', drop=True)
-
-        self.data_15m = self.data_15m.join([data_daily]).reset_index()
-
-        self.data_15m[DailyVolEmaParser] = self.data_15m[DailyVolEmaParser].fillna(method='ffill')
-
-        # 排除最后 signal Times , 可能此周期并未走完整
-        last_signal_times = self.data_15m.iloc[-1][SignalTimes]
-        self.data_15m = self.data_15m[self.data_15m[SignalTimes] != last_signal_times]
-
-        return self.data_15m
+        return data_15m
 
     def find_bar_max_1m(self, x, num):
 
@@ -271,35 +237,73 @@ class TrainingDataCalculate():
 
         return max_vol
 
-    def second_calculate(self):
+    def data_15m_first_calculate(self, data_1m):
 
-        for index in self.data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).index:
-            signal_times = self.data_15m.loc[index, SignalTimes]
-            end_price_time = self.data_15m.loc[index, EndPriceIndex]
+        data_15m = ResampleData.resample_1m_data(data=data_1m, freq=self.freq)
 
-            selects = self.data_15m[(self.data_15m[SignalTimes] == signal_times) &
-                                    (self.data_15m[EndPriceIndex] <= end_price_time)].tail(35)
+        data_15m = SignalMethod.signal_by_MACD_3ema(data_15m, data_1m).set_index('date', drop=True)
+
+        data_daily = ResampleData.resample_1m_data(data=data_1m, freq='daily')
+        data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
+        data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
+
+        daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
+
+        try:
+            """ 读取历史的参数json数据 """
+            pre_parser_json, pre_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
+
+            pre_daily_volume_max = pre_parser_json['dataDaily']['volume']
+
+        except ValueError:
+            pre_daily_volume_max = daily_volume_max
+
+        # 使用 max 函数一行完成最大值的更新
+        daily_volume_max = max(daily_volume_max, pre_daily_volume_max)
+
+        # todo 验证这个保存json 文件方法是否正确
+        current_parser_json = LoadJsonData.find_json_parser_by_month_folder(self.month, self.stock_code)
+        current_parser_json['dataDaily']['volume'] = daily_volume_max
+        save_json(current_parser_json, self.month, self.stock_code)
+
+        # 简化日线数据处理
+        data_daily[DailyVolEmaParser] = daily_volume_max / data_daily[DailyVolEma]
+        data_daily = data_daily[['date', DailyVolEmaParser]].set_index('date', drop=True)
+
+        data_15m = data_15m.join([data_daily]).reset_index()
+
+        data_15m[DailyVolEmaParser] = data_15m[DailyVolEmaParser].fillna(method='ffill')
+
+        # 排除最后 signal Times , 可能此周期并未走完整
+        last_signal_times = data_15m.iloc[-1][SignalTimes]
+        data_15m = data_15m[data_15m[SignalTimes] != last_signal_times]
+
+        return data_15m
+
+    def data_15m_second_calculate(self, data_15m):
+
+        for _, row in data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).iterorw():
+
+            signal_times = row[SignalTimes]
+            end_price_time = row[EndPriceIndex]
+
+            selects = data_15m[(data_15m[SignalTimes] == signal_times) & (data_15m[EndPriceIndex] <= end_price_time)].tail(35)
 
             # 优化索引获取
-            st_index, ed_index = selects.index[0], selects.index[-1]
+            start_index, end_index = selects.index[0], selects.index[-1]
 
-            self.data_15m.loc[st_index:ed_index, Bar1mVolMax1] = self.data_15m.loc[st_index:ed_index]['date'].apply(
-                self.find_bar_max_1m, args=(1,))
+            data_15m.loc[start_index:end_index, Bar1mVolMax1] = data_15m.loc[start_index:end_index]['date'].apply(self.find_bar_max_1m, args=(1,))
 
-            self.data_15m.loc[st_index:ed_index, Bar1mVolMax5] = self.data_15m.loc[st_index:ed_index]['date'].apply(
-                self.find_bar_max_1m, args=(5,))
+            data_15m.loc[start_index:end_index, Bar1mVolMax5] = data_15m.loc[start_index:end_index]['date'].apply(self.find_bar_max_1m, args=(5,))
 
         # 替换无穷大和无穷小的值为 NaN
-        self.data_15m = self.data_15m.replace([np.inf, -np.inf], np.nan)
+        data_15m = data_15m.replace([np.inf, -np.inf], np.nan)
 
-        # 计算数据保存
-        self.save_15m_data()
+        return data_15m
 
-        return self.data_15m
+    def data_15m_third_calculate(self, data_15m):
 
-    def third_calculate(self):
-
-        self.data_15m[Signal] = self.data_15m[Signal].astype(float)
+        data_15m[Signal] = data_15m[Signal].astype(float)
 
         # 成交量相关参数的处理
         vol_parser = ['volume', Cycle1mVolMax1, Cycle1mVolMax5,
@@ -307,17 +311,17 @@ class TrainingDataCalculate():
                       Bar1mVolMax1, Bar1mVolMax5, 'EndDaily1mVolMax5']  # 成交量乘以参数，相似化
 
         for i in vol_parser:
-            self.data_15m[i] = round(self.data_15m[i] * self.data_15m[DailyVolEmaParser])
+            data_15m[i] = round(data_15m[i] * data_15m[DailyVolEmaParser])
 
         next_dic = {nextCycleAmplitudeMax: CycleAmplitudeMax,
                     nextCycleLengthMax: CycleLengthMax}
 
-        condition = (~self.data_15m[SignalChoice].isnull())
+        condition = (~data_15m[SignalChoice].isnull())
         for keys, values in next_dic.items():
-            self.data_15m.loc[condition, keys] = self.data_15m.loc[condition, values].shift(-1)
+            data_15m.loc[condition, keys] = data_15m.loc[condition, values].shift(-1)
 
         # 提取前周期相关数据：
-        condition = (~self.data_15m[SignalChoice].isnull())
+        condition = (~data_15m[SignalChoice].isnull())
 
         pre_dic = {preCycle1mVolMax1: Cycle1mVolMax1,
                    preCycle1mVolMax5: Cycle1mVolMax5,
@@ -325,13 +329,13 @@ class TrainingDataCalculate():
                    preCycleLengthMax: CycleLengthMax}
 
         for key, values in pre_dic.items():
-            self.data_15m.loc[condition, key] = self.data_15m.loc[condition, values].shift(1)
+            data_15m.loc[condition, key] = data_15m.loc[condition, values].shift(1)
 
         fills = list(pre_dic.keys()) + list(next_dic.keys())
 
-        self.data_15m[fills] = self.data_15m[fills].fillna(method='ffill')
+        data_15m[fills] = data_15m[fills].fillna(method='ffill')
 
-        return self.data_15m
+        return data_15m
 
     def data_1m_calculate(self, ):
 
@@ -370,6 +374,7 @@ class TrainingDataCalculate():
 
             # 筛选数据并加载旧数据
             self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
+
             from sqlalchemy.exc import IntegrityError
             try:
                 StockData15m.append_15m(self.stock_code, self.data_15m)
@@ -389,8 +394,7 @@ class TrainingDataCalculate():
         record_end_signal = self.data_15m.iloc[-1]['Signal']
         record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
         record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
-            '%Y-%m-%d %H:%M:%S')
+        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
 
         # 读取旧参数并更新
         records = ReadSaveFile.read_json(self.month, self.stock_code)
@@ -405,21 +409,25 @@ class TrainingDataCalculate():
 
     def data_calculate(self):
 
-        # 读取json参数
-        self.record_json_data = self.rnn_parser_data()
-
-        # 导入 1m 数据， 更具参数选择；  读取参考的日期
+        # 导入 1m 数据 及 整理1m数据， 更具参数选择；  读取参考的日期
         self.data_1m = self.data_1m_calculate()
 
-        self.data_15m = self.first_calculate()
+        self.data_15m = self.data_15m_first_calculate(self.data_1m)
 
-        self.data_15m = self.second_calculate()
+        self.data_15m = self.data_15m_second_calculate(self.data_15m)
 
-        self.data_15m = self.third_calculate()
+        # 统计保存计算的15m数据
+        # todo 需要再次验证此方法的正确性
+        self.save_15m_data()
 
-        self.data_15m = self.column_stand()  # 标准化数据
+        self.data_15m = self.data_15m_third_calculate(self.data_15m)
+
+        self.data_15m = self.column_stand(self.data_15m)  # 标准化数据
 
         return self.data_15m
+
+
+class TrainingDataProcess(TrainingDataCalculate):
 
     def calculation_single(self):
 

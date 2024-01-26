@@ -72,6 +72,20 @@ class LoadJsonData:
         return False, False
 
 
+def save_json(new_data: dict, parser_month: str, stock_code: str):
+
+    """ 保存新的json数据.
+             Parameters:
+                 new_data (dict): 新的json数据；
+                 parser_month (str): 文件所在文件夹月份名称；
+                 stock_code (str): 股票名称文件名称；
+           """
+
+    path = StockDataPath.json_data_path(parser_month, stock_code)
+    with open(path, 'w') as f:
+        json.dump(new_data, f)
+
+
 if __name__ == '__main__':
     stock = '000001'
     parser_month = '2023-12'
