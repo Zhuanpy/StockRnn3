@@ -1,25 +1,53 @@
 from stock_path import StockDataPath
 import json
 import os
-from root_ import file_root
 
-
-class LoadJsonData:
+class MyJsonData:
 
     @classmethod
     def loadJsonData(cls, month: str, stock_code: str):
         # 读取json文件
         path = StockDataPath.json_data_path(month, stock_code)
-
         with open(path, 'r', encoding='utf-8') as f:
             jsons = json.load(f)
+
         return jsons
 
     @classmethod
-    def pre_month_json_folder_list(cls, month: str, ) -> tuple:
+    def save_json(cls, new_data: dict, month: str, stock_code: str):
+
+        """ 保存新的json数据.
+         Parameters:
+             new_data (dict): 新的json数据；
+             month (str): 文件所在文件夹月份名称；
+             stock_code (str): 股票名称文件名称；
+       """
+
+        path = StockDataPath.json_data_path(month, stock_code)
+
+        with open(path, 'w',  encoding='utf-8') as f:
+            json.dump(new_data, f,  ensure_ascii=False, indent=2)
+
+    @classmethod
+    def modify_nested_dict(cls, json_data, changes):
+
+        for key, value in changes.items():
+
+            if key in json_data and isinstance(json_data[key], dict) and isinstance(value, dict):
+                # 递归修改嵌套字典
+                cls.modify_nested_dict(json_data[key], value)
+
+            else:
+                # 直接修改键值对
+                json_data[key] = value
+
+        return json_data
+
+    @classmethod
+    def previous_month_json_folder_list(cls, target_month: str) -> tuple:
         """
         获取以前月份列表
-        :param month: 月份
+        :param target_month: 月份
         :class_file: 文件夹类型 ， 如 weigh , train_data ;
         :return: 上个月份列表
 
@@ -28,8 +56,7 @@ class LoadJsonData:
 
         """
 
-        root_path = os.path.join(file_root(), 'data', 'RnnData')
-
+        root_path = StockDataPath.rnnData_folder_path()
         # 获取RnnData文件夹下全部月份文件夹名称
         folder_names = sorted(
             [folder for folder in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, folder))],
@@ -39,7 +66,7 @@ class LoadJsonData:
         folder_names.remove('CommonFile')
 
         # 移除当前月份及以后月份的文件夹
-        folder_names = folder_names[folder_names.index(month) + 1:]
+        folder_names = folder_names[folder_names.index(target_month) + 1:]
 
         # 构建文件夹路径列表
         folder_path = [os.path.join(root_path, M, 'json') for M in folder_names]
@@ -47,7 +74,7 @@ class LoadJsonData:
         return folder_path, folder_names
 
     @classmethod
-    def find_json_parser_by_month_folder(cls, month: str, stock_code: str):
+    def find_previous_month_json_parser(cls, month: str, stock_code: str):
         """ 找出输入月份的上一个历史数据文件夹名称及月份名称.
              Parameters:
                  month (str): 输入月份；
@@ -58,7 +85,7 @@ class LoadJsonData:
                  json data month ： 文件所在文件夹月份名称.
            """
 
-        folder_paths, month_list = cls.pre_month_json_folder_list(month)
+        folder_paths, month_list = cls.previous_month_json_folder_list(month)
 
         for folder_path, M in zip(folder_paths, month_list):
 
@@ -72,24 +99,10 @@ class LoadJsonData:
         return False, False
 
 
-def save_json(new_data: dict, parser_month: str, stock_code: str):
-
-    """ 保存新的json数据.
-             Parameters:
-                 new_data (dict): 新的json数据；
-                 parser_month (str): 文件所在文件夹月份名称；
-                 stock_code (str): 股票名称文件名称；
-           """
-
-    path = StockDataPath.json_data_path(parser_month, stock_code)
-    with open(path, 'w') as f:
-        json.dump(new_data, f)
-
-
 if __name__ == '__main__':
     stock = '000001'
     parser_month = '2023-12'
-    json_parser, parser_month = LoadJsonData.find_json_parser_by_month_folder(parser_month, stock)
+    json_parser, parser_month = MyJsonData.find_previous_month_json_parser(parser_month, stock)
 
     print(json_parser['DailyVolEma'])
     print(parser_month)

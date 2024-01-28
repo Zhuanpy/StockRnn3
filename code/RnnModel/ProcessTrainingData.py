@@ -1,5 +1,5 @@
-from code.MySql.LoadMysql import LoadRnnModel
-import pandas as pd
+# from code.MySql.LoadMysql import LoadRnnModel
+
 
 """
 处理训练数据： 
@@ -14,33 +14,47 @@ import pandas as pd
 三： 处理模型数据
 4. 模型数据保存 及 记录； 从什么日期及信号名开始保存 ； 从什么日期 及 信号名开始结束保存
 
+一个思路，读取数据，处理数据，保存数据；
 
 """
+import pandas as pd
+import numpy as np
 from code.MySql.sql_utils import Stocks
 from code.MySql.DataBaseStockData1m import StockData1m
-from code.RnnDataFile.JsonData import LoadJsonData, save_json
+from code.MySql.DataBaseStockData15m import StockData15m
+from code.MySql.DataBaseStockDataDaily import StockDataDaily
+from code.RnnDataFile.JsonData import MyJsonData
 from code.parsers.RnnParser import *
 from code.Normal import ReadSaveFile, ResampleData
 from code.Signals.StatisticsMacd import SignalMethod
-import numpy as np
-from code.MySql.DataBaseStockData15m import StockData15m
+from datetime import datetime, timedelta
+
+
+def get_previous_month(current_month):
+    # 将输入的月份字符串解析为datetime对象
+    current_date = datetime.strptime(current_month, "%Y-%m")
+
+    # 计算前一个月的日期
+    previous_month = current_date - timedelta(days=current_date.day)
+
+    # 将结果格式化为字符串并返回
+    pre_month = previous_month.strftime("%Y-%m")
+    return pre_month
 
 
 class TrainingDataCalculate():
-
     """
     训练数据处理
     """
 
     def __init__(self, stock: str, month: str, ):  # _month
-
-        # ModelData.__init__(self)
-        self.stock_start_year = '2018-01-01'
+        self.stock_start_year = '2023-01-01'
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
 
         self.month = month
-        self.pre_month = ''  # 前一个月数据
+        self.pre_month = get_previous_month(self.month)  # 前一个月数据
 
+        self.load_year = '2018-01'
         self.data_1m = None
         self.data_15m = None
         self.times_data = None
@@ -50,27 +64,15 @@ class TrainingDataCalculate():
         self.RecordEndDate = None
 
         self.freq = '15m'
-        self.start_date_1m = None
+        # self.start_date_1m = None
+        self.data1m_start_date = None
+        self.data1m_end_date = None
 
         self.daily_volume_max = None
 
         self.x_columns = XColumn()
         self.y_column = YColumn()
         self.model_name = ModelName
-
-    def load_1m_data(self):
-
-        try:
-            json_data, pre_json_parser_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
-            start_date = json_data['TrainingData']['EndSignal']['StartTime']  # 提取上次训练数据，截止日期
-
-        except ValueError:
-            start_date = self.stock_start_year
-
-        # 导入数据从开始日期开始
-        data_1m = StockData1m.load_1m(self.stock_code, start_date)
-
-        return data_1m
 
     def stand_save_parser(self, data, column, drop_duplicates, drop_column):
 
@@ -108,7 +110,7 @@ class TrainingDataCalculate():
         # 查看参数
         try:
             """ 读取历史的参数json数据 """
-            parser_data, pre_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
+            parser_data, pre_month = MyJsonData.find_previous_month_json_parser(self.pre_month, self.stock_code)
 
             pre_high = parser_data['TrainingData']['dataDaily'][column]['num_max']
             pre_low = parser_data['TrainingData']['dataDaily'][column]['num_min']
@@ -134,10 +136,10 @@ class TrainingDataCalculate():
 
         return data
 
-    def stand_read_parser(self, data, column, match):
+    def stand_read_parser(self, data, column):
         parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
-        num_max = parser_data[self.stock_code][match]['num_max']
-        num_min = parser_data[self.stock_code][match]['num_min']
+        num_max = parser_data['TrainingData']["dataDaily"][column]['num_max']
+        num_min = parser_data['TrainingData']["dataDaily"][column]['num_min']
 
         data.loc[data[column] > num_max, column] = num_max
         data.loc[data[column] < num_min, column] = num_min
@@ -153,8 +155,8 @@ class TrainingDataCalculate():
             self.data_1m = self.data_1m[self.data_1m['date'] > pd.to_datetime(_date)]
 
             data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
-            data_daily.loc[:, 'date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
-            data_daily.loc[:, DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
+            data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
+            data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
 
             self.daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
 
@@ -192,7 +194,7 @@ class TrainingDataCalculate():
 
         for key, value in read_dict.items():
             # todo 验证保存参数的正确性
-            data_15m = self.stand_read_parser(data_15m, key, value)
+            data_15m = self.stand_read_parser(data_15m, value)
 
         data_15m = data_15m.dropna(subset=[Signal])
 
@@ -237,64 +239,138 @@ class TrainingDataCalculate():
 
         return max_vol
 
-    def data_15m_first_calculate(self, data_1m):
+    def data_daily(self, start_date):
+        start_date = (pd.to_datetime(start_date) - pd.DateOffset(years=1)).date()  # 导入的年份减去1年，度一个360天的数据
 
+        data_daily = StockDataDaily.load_daily_data(self.stock_code)
+        columns = ['date', 'volume']
+        data_daily = data_daily[columns]
+        data_daily['date '] = pd.to_datetime(data_daily['date'])
+
+        data_daily = data_daily[data_daily['date'] >= start_date]
+
+        data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
+
+        daily_volume_max = round(data_daily['volume'].max(), 2)
+        daily_volume_min = round(data_daily['volume'].min(), 2)
+
+        daily_volume_ema_max = round(data_daily[DailyVolEma].max(), 2)
+        daily_volume_ema_min = round(data_daily[DailyVolEma].min(), 2)
+
+        try:
+            """ 读取历史的参数json数据 """
+            pre_json, pre_month = MyJsonData.find_previous_month_json_parser(self.month, self.stock_code)
+
+            # { "volume": {"num_max": 1, "num_min": 0.0}, }
+            pre_daily_volume_max = pre_json["TrainingData"]["dataDaily"]["volume"]["num_max"]
+            pre_daily_volume_min = pre_json["TrainingData"]["dataDaily"]["volume"]["num_min"]
+
+            # {"DailyVolEma": 1,}
+            pre_daily_volume_ema_max = pre_json["TrainingData"]["dataDaily"][DailyVolEma]["num_max"]
+            pre_daily_volume_ema_min = pre_json["TrainingData"]["dataDaily"][DailyVolEma]["num_min"]
+
+        except ValueError:
+            pre_daily_volume_max = daily_volume_max
+            pre_daily_volume_min = daily_volume_min
+
+            pre_daily_volume_ema_max = daily_volume_ema_max
+            pre_daily_volume_ema_min = daily_volume_ema_min
+
+        # 使用 max 函数一行完成最大值的更新
+        daily_volume_max = max(daily_volume_max, pre_daily_volume_max)
+        daily_volume_min = max(daily_volume_min, pre_daily_volume_min)
+        daily_vol_ema_max = max(daily_volume_ema_max, pre_daily_volume_ema_max)
+        daily_vol_ema_min = max(daily_volume_ema_min, pre_daily_volume_ema_min)
+
+        # 简化日线数据处理
+        data_daily[DailyVolEmaParser] = daily_volume_max / data_daily[DailyVolEma]
+        data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
+        data_daily = data_daily[['date', DailyVolEmaParser]]  # .set_index('date', drop=True)
+
+        # 保存数据
+        daily_volume_dic = {"num_max": str(daily_volume_max), "num_min": str(daily_volume_min)}
+        daily_vol_ema_dic = {"num_max": str(daily_vol_ema_max), "num_min": str(daily_vol_ema_min)}
+        new_parser = {"TrainingData": {'dataDaily': {'volume': daily_volume_dic, DailyVolEma: daily_vol_ema_dic}}}
+
+        current_json = MyJsonData.loadJsonData(self.month, self.stock_code)
+        current_json = MyJsonData.modify_nested_dict(current_json, new_parser)
+        MyJsonData.save_json(current_json, self.month, self.stock_code)
+
+        return data_daily
+
+    def data_15m_first_calculate(self, data_1m, data_daily):
+
+        """ 读取历史的参数json数据 """
+        try:
+            pre_json, pre_month = MyJsonData.find_previous_month_json_parser(self.month, self.stock_code)
+            pre_EndSignal_SignalName = pre_json["TrainingData"]["EndSignal"]["SignalName"]
+
+        except ValueError:
+            pre_EndSignal_SignalName = None
+        # print(pre_EndSignal_SignalName)
         data_15m = ResampleData.resample_1m_data(data=data_1m, freq=self.freq)
 
         data_15m = SignalMethod.signal_by_MACD_3ema(data_15m, data_1m).set_index('date', drop=True)
 
-        data_daily = ResampleData.resample_1m_data(data=data_1m, freq='daily')
-        data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
-        data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
-
-        daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
-
-        try:
-            """ 读取历史的参数json数据 """
-            pre_parser_json, pre_month = LoadJsonData.find_json_parser_by_month_folder(self.pre_month, self.stock_code)
-
-            pre_daily_volume_max = pre_parser_json['dataDaily']['volume']
-
-        except ValueError:
-            pre_daily_volume_max = daily_volume_max
-
-        # 使用 max 函数一行完成最大值的更新
-        daily_volume_max = max(daily_volume_max, pre_daily_volume_max)
-
-        # todo 验证这个保存json 文件方法是否正确
-        current_parser_json = LoadJsonData.find_json_parser_by_month_folder(self.month, self.stock_code)
-        current_parser_json['dataDaily']['volume'] = daily_volume_max
-        save_json(current_parser_json, self.month, self.stock_code)
-
-        # 简化日线数据处理
-        data_daily[DailyVolEmaParser] = daily_volume_max / data_daily[DailyVolEma]
-        data_daily = data_daily[['date', DailyVolEmaParser]].set_index('date', drop=True)
-
-        data_15m = data_15m.join([data_daily]).reset_index()
-
-        data_15m[DailyVolEmaParser] = data_15m[DailyVolEmaParser].fillna(method='ffill')
-
-        # 排除最后 signal Times , 可能此周期并未走完整
+        # 删除最后一次 signal Times , 可能此周期并未走完整
         last_signal_times = data_15m.iloc[-1][SignalTimes]
         data_15m = data_15m[data_15m[SignalTimes] != last_signal_times]
+
+        # 清理已经历史已经 计算保存的数据， 通过json参数记录获取
+        if pre_EndSignal_SignalName:
+            data_15m = data_15m[data_15m['SignalTimes'] > pre_EndSignal_SignalName]
+
+        data_15m = data_15m.dropna(subset=[SignalTimes])
+
+        # 获取新数据的 开始信号 和 结束信号信息
+        current_StartSignal_SignalName = data_15m.iloc[0]['SignalTimes']
+        current_StartSignal_StartTime = data_15m.iloc[0]['SignalStartTime']
+
+        current_EndSignal_SignalName = data_15m.iloc[-1]['SignalTimes']
+        current_EndSignal_StartTime = data_15m.iloc[-1]['SignalStartTime']
+
+        # 整理 data_daily 数据， 大于 current_StartSignal_StartTime & 小于 current_EndSignal_StartTime
+        data_daily = data_daily[(data_daily['date'] > current_StartSignal_StartTime) &
+                                (data_daily['date'] < current_EndSignal_StartTime)]
+
+        # 合并 data_daily 数据：
+        data_daily = data_daily.set_index('date', drop=True)
+        data_15m = data_15m.join([data_daily]).reset_index()
+        data_15m[DailyVolEmaParser] = data_15m[DailyVolEmaParser].ffill()  #
+
+        # 保存新的 json 数据
+        current_StartSignal_dic = {"SignalName": current_StartSignal_SignalName,
+                                   "StartTime": str(current_StartSignal_StartTime)}
+
+        current_EndSignal_dic = {"SignalName": current_EndSignal_SignalName,
+                                 "StartTime": str(current_EndSignal_StartTime)}
+
+        new_parser = {"TrainingData": {"StartSignal": current_StartSignal_dic,
+                                       "EndSignal": current_EndSignal_dic}}
+
+        current_json = MyJsonData.loadJsonData(self.month, self.stock_code)
+        current_json = MyJsonData.modify_nested_dict(current_json, new_parser)
+        MyJsonData.save_json(current_json, self.month, self.stock_code)
 
         return data_15m
 
     def data_15m_second_calculate(self, data_15m):
 
-        for _, row in data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).iterorw():
-
+        for _, row in data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).iterrows():
             signal_times = row[SignalTimes]
             end_price_time = row[EndPriceIndex]
 
-            selects = data_15m[(data_15m[SignalTimes] == signal_times) & (data_15m[EndPriceIndex] <= end_price_time)].tail(35)
+            selects = data_15m[(data_15m[SignalTimes] == signal_times) &
+                               (data_15m[EndPriceIndex] <= end_price_time)].tail(35)
 
             # 优化索引获取
             start_index, end_index = selects.index[0], selects.index[-1]
 
-            data_15m.loc[start_index:end_index, Bar1mVolMax1] = data_15m.loc[start_index:end_index]['date'].apply(self.find_bar_max_1m, args=(1,))
+            data_15m.loc[start_index:end_index, Bar1mVolMax1] = data_15m.loc[start_index:end_index]['date'].apply(
+                self.find_bar_max_1m, args=(1,))
 
-            data_15m.loc[start_index:end_index, Bar1mVolMax5] = data_15m.loc[start_index:end_index]['date'].apply(self.find_bar_max_1m, args=(5,))
+            data_15m.loc[start_index:end_index, Bar1mVolMax5] = data_15m.loc[start_index:end_index]['date'].apply(
+                self.find_bar_max_1m, args=(5,))
 
         # 替换无穷大和无穷小的值为 NaN
         data_15m = data_15m.replace([np.inf, -np.inf], np.nan)
@@ -339,32 +415,46 @@ class TrainingDataCalculate():
 
     def data_1m_calculate(self, ):
 
-        """
-        :param
-        :record_stat: datatime, 输入datatime 类型， 参考日期 ；
-        读取一分钟数据，如果历史训练数据有记录已经计算的数据，则从结束日期开始算，如果没有，则从保存历史数据开始算；
-        """
+        """ 根据历史训练数据，导入1M 数据"""
+        try:
+            json_data, parser_month = MyJsonData.find_previous_month_json_parser(self.month, self.stock_code)
+            start_date_1m = json_data['TrainingData']['EndSignal']['StartTime']  # 提取上次训练数据，截止日期
+            start_date_1m = pd.to_datetime(start_date_1m) + pd.Timedelta(days=-120)
 
-        # 判断是否有指定的 RecordStartDate
-        if self.record_json_data:
-            start_date = self.record_json_data['model']['EndDate']
+            start_date_1m = start_date_1m.normalize()
 
-        else:
-            start_date = ''  # todo 读取股票池数据，数据开始日期 ；
+            if start_date_1m < pd.to_datetime(self.stock_start_year).normalize():
+                start_date_1m = pd.to_datetime(self.stock_start_year).normalize()
 
-        # 加载1分钟数据, 从哪个日期开始加载 ？
-        data_1m = StockData1m.load_1m(self.stock_code, start_date)
+        except ValueError:
+            start_date_1m = pd.to_datetime(self.stock_start_year).normalize()
+
+        # 导入1m数据
+        self.load_year = str(start_date_1m.year)
+
+        data_1m = StockData1m.load_1m(self.stock_code, self.load_year)
+
+        # 筛选出需要的日期
+        end_data_1m = pd.to_datetime(self.month) + pd.Timedelta(days=-30)
+
         data_1m = data_1m.sort_values(by=['date'])
-
-        # 提取数据起始日期
-        self.start_date_1m = data_1m.iloc[0]['date']
-
-        # 筛选数据时间范围
-        data_1m = data_1m[(data_1m['date'] > (pd.to_datetime(start_date) + pd.Timedelta(days=-30))) &
-                          (data_1m['date'] < (pd.to_datetime(self.month) + pd.Timedelta(days=-30)))]
+        data_1m = data_1m[(data_1m['date'] > start_date_1m) & (data_1m['date'] < end_data_1m)]
 
         # 去除重复值和缺失值
         data_1m = data_1m.dropna(subset=['date']).drop_duplicates(subset=['date']).reset_index(drop=True)
+
+        """ 提取 & 保存 data1m数据 起始日期 """
+        # "data1m": {"startDate": "2023-01-11", "EndDate": "2023-01-11"},
+        self.data1m_start_date = data_1m.iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
+        self.data1m_end_date = data_1m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
+
+        # 保存 data 1m 数据, Update JSON data
+        json_parser = MyJsonData.loadJsonData(self.month, self.stock_code)
+        data1m_dic = {"startDate": self.data1m_start_date,
+                      "EndDate": self.data1m_end_date}
+
+        json_parser["TrainingData"]["data1m"] = data1m_dic
+        MyJsonData.save_json(json_parser, self.month, self.stock_code)
 
         return data_1m
 
@@ -394,7 +484,8 @@ class TrainingDataCalculate():
         record_end_signal = self.data_15m.iloc[-1]['Signal']
         record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
         record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
+        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
+            '%Y-%m-%d %H:%M:%S')
 
         # 读取旧参数并更新
         records = ReadSaveFile.read_json(self.month, self.stock_code)
@@ -409,10 +500,11 @@ class TrainingDataCalculate():
 
     def data_calculate(self):
 
-        # 导入 1m 数据 及 整理1m数据， 更具参数选择；  读取参考的日期
-        self.data_1m = self.data_1m_calculate()
+        self.data_1m = self.data_1m_calculate()  # 导入 1m数据 及 整理1m数据， 更具json 当月参数；
 
-        self.data_15m = self.data_15m_first_calculate(self.data_1m)
+        daily_parser = self.data_daily(self.load_year)
+
+        self.data_15m = self.data_15m_first_calculate(self.data_1m, daily_parser)
 
         self.data_15m = self.data_15m_second_calculate(self.data_15m)
 
@@ -427,110 +519,112 @@ class TrainingDataCalculate():
         return self.data_15m
 
 
-class TrainingDataProcess(TrainingDataCalculate):
+# class TrainingDataProcess(TrainingDataCalculate):
+#
+#     def calculation_single(self):
+#
+#         try:
+#             path = find_file_in_paths(self.month, 'json', f'{self.stock_code}.json')  # 返回 json 路径
+#             record = ReadSaveFile.read_json_by_path(path)
+#             self.RecordEndDate = record[self.stock_code]['RecordEndDate']
+#             self.RecordStartDate = record[self.stock_code]['NextStartDate']
+#
+#         except ValueError:
+#             pass
+#
+#         self.data_15m = self.data_calculate()
+#
+#         for i in range(4):
+#             x = self.x_columns[i]
+#             y = self.y_column[i]
+#             model_name = self.model_name[i]
+#             self.data_common(model_name, x, y)
+#
+#     def calculation_read_from_sql(self):
+#
+#         self.data_15m = StockData15m.load_15m(self.stock_code)
+#
+#         self.data_15m = self.third_calculate()
+#         self.data_15m = self.column_stand()  # 标准化数据
+#
+#         for i in range(4):
+#             x = self.x_columns[i]
+#             y = self.y_column[i]
+#             model_name = self.model_name[i]
+#             self.data_common(model_name, x, y)
 
-    def calculation_single(self):
 
-        try:
-            path = find_file_in_paths(self.month, 'json', f'{self.stock_code}.json')  # 返回 json 路径
-            record = ReadSaveFile.read_json_by_path(path)
-            self.RecordEndDate = record[self.stock_code]['RecordEndDate']
-            self.RecordStartDate = record[self.stock_code]['NextStartDate']
-
-        except ValueError:
-            pass
-
-        self.data_15m = self.data_calculate()
-
-        for i in range(4):
-            x = self.x_columns[i]
-            y = self.y_column[i]
-            model_name = self.model_name[i]
-            self.data_common(model_name, x, y)
-
-    def calculation_read_from_sql(self):
-
-        self.data_15m = StockData15m.load_15m(self.stock_code)
-
-        self.data_15m = self.third_calculate()
-        self.data_15m = self.column_stand()  # 标准化数据
-
-        for i in range(4):
-            x = self.x_columns[i]
-            y = self.y_column[i]
-            model_name = self.model_name[i]
-            self.data_common(model_name, x, y)
-
-
-class RMTrainingData:
-
-    def __init__(self, month: str):  # _month
-        self.month = month
-
-    def single_stock(self, stock: str):
-        calculation = TrainingDataCalculate(stock, self.month)
-        calculation.calculation_single()
-
-    def update_train_records(self, records):
-        """更新训练表格记录"""
-        ids = tuple(records.id)
-
-        sql = f'''ParserMonth = %s, ModelData = 'pending' where id in %s;'''
-
-        params = (self.month, ids)
-        LoadRnnModel.set_table_train_record(sql, params)
-
-    def all_stock(self):
-
-        load = LoadRnnModel.load_train_record()
-
-        records = load[load['ParserMonth'] == self.month]
-
-        # 更新训练记录中的状态
-        if records.empty:
-            records = load.copy()
-            records['ParserMonth'] = self.month
-            records['ModelData'] = 'pending'
-            records['ModelCheck'] = 'pending'
-            records['ModelError'] = 'pending'
-
-            self.update_train_records(records)
-
-        # 查看等待数据
-        records = records[~records['ModelData'].isin(['success'])].reset_index(drop=True)
-
-        if records.empty:
-            print(f'{self.month}月训练数据创建完成')
-            return False  # 结束运行，因为 records 为空
-
-        for i, row in records.iterrows():
-            stock_ = row['name']
-            id_ = row['id']
-
-            print(f'\n计算进度：'
-                  f'\n剩余股票: {(records.shape[0] - i)} 个; 总股票数: {records.shape[0]}个;'
-                  f'\n当前股票：{stock_};')
-
-            try:
-                run = TrainingDataCalculate(stock_, self.month)
-                run.calculation_read_from_sql()
-
-                sql = f'''ModelData = 'success', ModelDataTiming = %s where id = %s; '''
-
-                params = (pd.Timestamp('now').date(), id_)
-                LoadRnnModel.set_table_train_record(sql, params)
-
-            except Exception as ex:
-                print(f'Model Data Create Error: {ex}')
-                sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = %s; '''
-                params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, id_)
-                LoadRnnModel.set_table_train_record(sql, params)
-
-        return True
+# class RMTrainingData:
+#
+#     def __init__(self, month: str):  # _month
+#         self.month = month
+#
+#     def single_stock(self, stock: str):
+#         calculation = TrainingDataCalculate(stock, self.month)
+#         calculation.calculation_single()
+#
+#     def update_train_records(self, records):
+#         """更新训练表格记录"""
+#         ids = tuple(records.id)
+#
+#         sql = f'''ParserMonth = %s, ModelData = 'pending' where id in %s;'''
+#
+#         params = (self.month, ids)
+#         LoadRnnModel.set_table_train_record(sql, params)
+#
+#     def all_stock(self):
+#
+#         load = LoadRnnModel.load_train_record()
+#
+#         records = load[load['ParserMonth'] == self.month]
+#
+#         # 更新训练记录中的状态
+#         if records.empty:
+#             records = load.copy()
+#             records['ParserMonth'] = self.month
+#             records['ModelData'] = 'pending'
+#             records['ModelCheck'] = 'pending'
+#             records['ModelError'] = 'pending'
+#
+#             self.update_train_records(records)
+#
+#         # 查看等待数据
+#         records = records[~records['ModelData'].isin(['success'])].reset_index(drop=True)
+#
+#         if records.empty:
+#             print(f'{self.month}月训练数据创建完成')
+#             return False  # 结束运行，因为 records 为空
+#
+#         for i, row in records.iterrows():
+#             stock_ = row['name']
+#             id_ = row['id']
+#
+#             print(f'\n计算进度：'
+#                   f'\n剩余股票: {(records.shape[0] - i)} 个; 总股票数: {records.shape[0]}个;'
+#                   f'\n当前股票：{stock_};')
+#
+#             try:
+#                 run = TrainingDataCalculate(stock_, self.month)
+#                 run.calculation_read_from_sql()
+#
+#                 sql = f'''ModelData = 'success', ModelDataTiming = %s where id = %s; '''
+#
+#                 params = (pd.Timestamp('now').date(), id_)
+#                 LoadRnnModel.set_table_train_record(sql, params)
+#
+#             except Exception as ex:
+#                 print(f'Model Data Create Error: {ex}')
+#                 sql = f'''ModelData = 'error', ModelDataTiming = NULL where id = %s; '''
+#                 params = (LoadRnnModel.db_rnn, LoadRnnModel.tb_train_record, id_)
+#                 LoadRnnModel.set_table_train_record(sql, params)
+#
+#         return True
 
 
 if __name__ == '__main__':
-    month_ = '2023-01'
-    start_d = '2018-01-01'
-    running = RMTrainingData(month_)
-    running.all_stock()
+    month_ = '2023-10'
+    stock_name = '000001'
+    running = TrainingDataCalculate(stock_name, month_)
+    data = running.data_calculate()
+    print(data)
+    # data = running.data_calculate()
