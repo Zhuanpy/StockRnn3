@@ -307,7 +307,7 @@ class TrainingDataCalculate():
 
         except ValueError:
             pre_EndSignal_SignalName = None
-        # print(pre_EndSignal_SignalName)
+
         data_15m = ResampleData.resample_1m_data(data=data_1m, freq=self.freq)
 
         data_15m = SignalMethod.signal_by_MACD_3ema(data_15m, data_1m).set_index('date', drop=True)
@@ -409,8 +409,8 @@ class TrainingDataCalculate():
 
         fills = list(pre_dic.keys()) + list(next_dic.keys())
 
-        data_15m[fills] = data_15m[fills].fillna(method='ffill')
-
+        data_15m[fills] = data_15m[fills].ffill()  # fillna(method='ffill')
+        # print(data_15m)
         return data_15m
 
     def data_1m_calculate(self, ):
@@ -458,45 +458,48 @@ class TrainingDataCalculate():
 
         return data_1m
 
-    def save_15m_data(self):
-
-        if self.RecordStartDate:
-
-            # 筛选数据并加载旧数据
-            self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
-
-            from sqlalchemy.exc import IntegrityError
-            try:
-                StockData15m.append_15m(self.stock_code, self.data_15m)
-
-            except IntegrityError:
-                old = StockData15m.load_15m(self.stock_code)
-                last_date = old.iloc[-1]['date']
-                new = self.data_15m[self.data_15m['date'] > last_date]
-                old = pd.concat([old, new], ignore_index=True)
-                StockData15m.replace_15m(self.stock_code, old)
-
-        else:
-            StockData15m.replace_15m(self.stock_code, self.data_15m)
-
-        # 保存15m数据截止日期相关信息
-        record_end_date = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
-        record_end_signal = self.data_15m.iloc[-1]['Signal']
-        record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
-        record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
-        record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
-            '%Y-%m-%d %H:%M:%S')
-
-        # 读取旧参数并更新
-        records = ReadSaveFile.read_json(self.month, self.stock_code)
-        records.update({
-            'RecordEndDate': record_end_date,
-            'RecordEndSignal': record_end_signal,
-            'RecordEndSignalTimes': record_end_signal_times,
-            'RecordEndSignalStartTime': record_end_signal_start_time,
-            'RecordNextStartDate': record_next_start})
-
-        ReadSaveFile.save_json(records, self.month, self.stock_code)  # 更新参数
+    # def save_15m_data(self):
+    #
+    #     # if self.RecordStartDate:
+    #     #
+    #     #     # 筛选数据并加载旧数据
+    #     #     self.data_15m = self.data_15m[self.data_15m['date'] > self.RecordEndDate]
+    #     #
+    #     #     from sqlalchemy.exc import IntegrityError
+    #     #     try:
+    #     #         StockData15m.append_15m(self.stock_code, self.data_15m)
+    #     #
+    #     #     except IntegrityError:
+    #     #         old = StockData15m.load_15m(self.stock_code)
+    #     #         last_date = old.iloc[-1]['date']
+    #     #         new = self.data_15m[self.data_15m['date'] > last_date]
+    #     #         old = pd.concat([old, new], ignore_index=True)
+    #     #         StockData15m.replace_15m(self.stock_code, old)
+    #     #
+    #     # else:
+    #     #     StockData15m.replace_15m(self.stock_code, self.data_15m)
+    #
+    #     # 保存15m数据截止日期相关信息
+    #
+    #     record_end_signal = self.data_15m.iloc[-1]['Signal']
+    #     record_end_date = self.data_15m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
+    #
+    #     record_end_signal_times = self.data_15m.iloc[-1]['SignalTimes']
+    #     record_end_signal_start_time = self.data_15m.iloc[-1]['SignalStartTime'].strftime('%Y-%m-%d %H:%M:%S')
+    #     record_next_start = self.data_15m.drop_duplicates(subset=[SignalTimes]).tail(6).iloc[0]['date'].strftime(
+    #         '%Y-%m-%d %H:%M:%S')
+    #
+    #     # 读取旧参数并更新
+    #     records = ReadSaveFile.read_json(self.month, self.stock_code)
+    #
+    #     records.update({
+    #         'RecordEndDate': record_end_date,
+    #         'RecordEndSignal': record_end_signal,
+    #         'RecordEndSignalTimes': record_end_signal_times,
+    #         'RecordEndSignalStartTime': record_end_signal_start_time,
+    #         'RecordNextStartDate': record_next_start})
+    #
+    #     ReadSaveFile.save_json(records, self.month, self.stock_code)  # 更新参数
 
     def data_calculate(self):
 
@@ -510,10 +513,11 @@ class TrainingDataCalculate():
 
         # 统计保存计算的15m数据
         # todo 需要再次验证此方法的正确性
-        self.save_15m_data()
+        # self.save_15m_data()
 
         self.data_15m = self.data_15m_third_calculate(self.data_15m)
 
+        # exit()
         self.data_15m = self.column_stand(self.data_15m)  # 标准化数据
 
         return self.data_15m
