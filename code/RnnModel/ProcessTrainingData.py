@@ -21,7 +21,6 @@ import pandas as pd
 import numpy as np
 from code.MySql.sql_utils import Stocks
 from code.MySql.DataBaseStockData1m import StockData1m
-from code.MySql.DataBaseStockData15m import StockData15m
 from code.MySql.DataBaseStockDataDaily import StockDataDaily
 from code.RnnDataFile.JsonData import MyJsonData
 from code.parsers.RnnParser import *
