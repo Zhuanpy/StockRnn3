@@ -3,6 +3,8 @@ import pymysql
 from code.RnnDataFile.password import sql_password
 from DataBaseStockDataDaily import StockDataDaily
 from DataBaseStockData1m import StockData1m
+from code.Normal import ResampleData
+import pandas as pd
 
 
 def my_cursor(database: str):
@@ -48,12 +50,9 @@ def rename_daily_table_name():
 
 def return_sql_duplicates(db: str, tb: str):
     # 查询重复日期记录
-    sql_ = f'''
-                   SELECT date, COUNT(*) AS count
-                   FROM `{db}`.`{tb}` 
-                   GROUP BY date
-                   HAVING COUNT(*) > 1
-               '''
+    sql_ = f"""
+    SELECT date, COUNT(*) AS count FROM `{db}`.`{tb}` GROUP BY date HAVING COUNT(*) > 1
+            """
     return sql_
 
 
@@ -166,13 +165,14 @@ def add_model_run_colums():
 拿一个数据来验证
 """
 
-from code.Normal import ResampleData
-import pandas as pd
-
 
 def complete_daily_data(stock: str):
-    data_1m = StockData1m.load_1m(stock, '2024')
+
+    data_1m = StockData1m.load_1m(stock, '2022', '2022')
     daily_data = ResampleData.resample_1m_data(data_1m, 'daily')
+
+    print(daily_data)
+    exit()
     date = '2024-01-30'
     daily_data = daily_data[daily_data['date'] == pd.to_datetime(date).date()]
     StockDataDaily.append_daily_data(stock, daily_data)
