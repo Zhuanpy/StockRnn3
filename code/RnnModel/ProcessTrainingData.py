@@ -220,6 +220,7 @@ class TrainingDataCalculate():
 
         try:
             start_time = pd.to_datetime(x) + pd.Timedelta(minutes=-15)
+
             end_time = pd.to_datetime(x)
 
             max_vol = self.data_1m[(self.data_1m['date'] > start_time) & (self.data_1m['date'] < end_time)]
@@ -409,7 +410,8 @@ class TrainingDataCalculate():
         fills = list(pre_dic.keys()) + list(next_dic.keys())
 
         data_15m[fills] = data_15m[fills].ffill()  # fillna(method='ffill')
-        # print(data_15m)
+        print(data_15m)
+        exit()
         return data_15m
 
     def data_1m_calculate(self, ):
@@ -507,7 +509,8 @@ class TrainingDataCalculate():
         daily_parser = self.data_daily(self.load_year)
 
         self.data_15m = self.data_15m_first_calculate(self.data_1m, daily_parser)
-
+        print(self.data_15m)
+        exit()
         self.data_15m = self.data_15m_second_calculate(self.data_15m)
 
         # 统计保存计算的15m数据

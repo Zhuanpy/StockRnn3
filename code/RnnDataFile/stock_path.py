@@ -52,6 +52,7 @@ class AnalysisDataPath:
 
     @classmethod
     def analysis_industry_trend_jpg_path(cls, file_name):
+        """ 行业趋势图片路径 """
         r = os.path.join(cls.data_path, 'output', 'analysis', file_name)
         return r
 

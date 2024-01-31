@@ -2,6 +2,7 @@ from DataBaseAction import load_tables
 import pymysql
 from code.RnnDataFile.password import sql_password
 from DataBaseStockDataDaily import StockDataDaily
+from DataBaseStockData1m import StockData1m
 
 
 def my_cursor(database: str):
@@ -13,7 +14,8 @@ def my_cursor(database: str):
 
 
 def rename_daily_table_name():
-    # 获取所有表格名称
+    """ 重新命名 日K 数据表格名字 """
+
     database = 'stock_daily_data'
     tables = load_tables(database)
 
@@ -157,5 +159,28 @@ def add_model_run_colums():
     cur.close()
 
 
+""" 猜想及验证：
+1. 猜想： 表格中，如果添加已经存在的date进去会怎样？ 报错 还是替换？
+2. 场景1， 如果下载了一个月的数据，有的日期有，有的日期确实，此时保存数据会出现怎样的结果
+验证：
+拿一个数据来验证
+"""
+
+from code.Normal import ResampleData
+import pandas as pd
+
+
+def complete_daily_data(stock: str):
+    data_1m = StockData1m.load_1m(stock, '2024')
+    daily_data = ResampleData.resample_1m_data(data_1m, 'daily')
+    date = '2024-01-30'
+    daily_data = daily_data[daily_data['date'] == pd.to_datetime(date).date()]
+    StockDataDaily.append_daily_data(stock, daily_data)
+
+    # 保存一个数据试试结果
+    print(daily_data)
+
+
 if __name__ == "__main__":
-    drop_duplicate_and_reset_date2id_()
+    stock_code = "000001"
+    complete_daily_data(stock_code)
