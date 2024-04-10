@@ -138,11 +138,19 @@ class TrainingDataCalculate():
 
     def stand_read_parser(self, data, column):
         parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
-        num_max = parser_data['TrainingData']["dataDaily"][column]['num_max']
-        num_min = parser_data['TrainingData']["dataDaily"][column]['num_min']
 
-        data.loc[data[column] > num_max, column] = num_max
-        data.loc[data[column] < num_min, column] = num_min
+        # 获取指定列的训练数据
+        column_data = parser_data['TrainingData']["dataDaily"][column]
+
+        num_max = column_data['num_max']
+        num_min = column_data['num_min']
+
+        # 使用clip函数将数据限制在最大值和最小值之间
+        data[column] = data[column].clip(num_min, num_max)
+
+        # data.loc[data[column] > num_max, column] = num_max
+        # data.loc[data[column] < num_min, column] = num_min
+
         data[column] = (data[column] - num_min) / (num_max - num_min)
         return data
 
@@ -357,6 +365,8 @@ class TrainingDataCalculate():
 
     def data_15m_second_calculate(self, data_15m):
 
+        """ 找到 bar 1m 最大值； """
+
         for _, row in data_15m.dropna(subset=[SignalChoice, EndPriceIndex]).iterrows():
             signal_times = row[SignalTimes]
             end_price_time = row[EndPriceIndex]
@@ -380,6 +390,7 @@ class TrainingDataCalculate():
 
     def data_15m_third_calculate(self, data_15m):
 
+        """ 第三次处理， 提取前周期信息 """
         data_15m[Signal] = data_15m[Signal].astype(float)
 
         # 成交量相关参数的处理
@@ -411,8 +422,7 @@ class TrainingDataCalculate():
         fills = list(pre_dic.keys()) + list(next_dic.keys())
 
         data_15m[fills] = data_15m[fills].ffill()  # fillna(method='ffill')
-        print(data_15m)
-        exit()
+
         return data_15m
 
     def data_1m_calculate(self, ):
@@ -505,13 +515,12 @@ class TrainingDataCalculate():
 
     def data_calculate(self):
 
-        self.data_1m = self.data_1m_calculate()  # 导入 1m数据 及 整理1m数据， 更具json 当月参数；
+        self.data_1m = self.data_1m_calculate()  # 导入 1m 数据 及 整理 1m 数据， 跟新当月参数json数据；
 
         daily_parser = self.data_daily(self.load_year)
 
         self.data_15m = self.data_15m_first_calculate(self.data_1m, daily_parser)
-        print(self.data_15m)
-        exit()
+
         self.data_15m = self.data_15m_second_calculate(self.data_15m)
 
         # 统计保存计算的15m数据
@@ -520,7 +529,6 @@ class TrainingDataCalculate():
 
         self.data_15m = self.data_15m_third_calculate(self.data_15m)
 
-        # exit()
         self.data_15m = self.column_stand(self.data_15m)  # 标准化数据
 
         return self.data_15m
