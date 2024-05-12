@@ -179,7 +179,7 @@ class DownloadData:
 
         if not source:
             # todo 保存下这个日志
-            #  error downloading {code} data from 东方财富: {ex}'
+            # error downloading {code} data from 东方财富: {ex}'
             info_text = f"Failed to retrieve data for {code}. Source is empty."
             logging.warning(info_text)
             return pd.DataFrame()
@@ -497,5 +497,5 @@ if __name__ == '__main__':
 
     # data_ = DownloadData.stock_1m_days('002475')
 
-    download = DownloadData.board_1m_multiple('bk1017', 5)
+    download = DownloadData.stock_1m_days('002475', 5)
     print(download)

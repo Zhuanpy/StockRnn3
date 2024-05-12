@@ -232,7 +232,6 @@ class ResampleData:
         rsp['low'] = data['low'].resample(parameter, closed='right', label='right').min()
         rsp['volume'] = data['volume'].resample(parameter, closed='right', label='right').sum()
         rsp['money'] = data['money'].resample(parameter, closed='right', label='right').sum()
-
         rsp = rsp.dropna(how='any').reset_index(drop=True)
         rsp = rsp[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
 
@@ -343,7 +342,6 @@ class Useful:
 
 
 if __name__ == '__main__':
-    print('')
-    # ReadSaveFile.read_json()
     # count = PoolCount.count_trend()
-    # print(count)
+
+
