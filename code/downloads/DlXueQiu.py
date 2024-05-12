@@ -9,6 +9,7 @@ pd.set_option('display.width', 5000)
 
 
 def market_code(stock_code):
+
     if stock_code[0] == '6':
         mk = 'SH'
 
@@ -23,11 +24,12 @@ def market_code(stock_code):
 
 
 class DownloadData:
+
     cookies = XueqiuParam.cookies()
     headers = XueqiuParam.headers()
 
     @classmethod
-    def stock_1m_data(cls, stock_code: str, days=1):
+    def data_1m(cls, stock_code: str, days=1):
         """
         :param stock_code: 股票代码
         :param days: 获取数据的天数，默认1天
@@ -70,7 +72,12 @@ class DownloadData:
         return data
 
     @classmethod
-    def stock_daily_data(cls, stock_code: str, count=100):
+    def data_daily(cls, stock_code: str, count=100):
+        """
+        :param stock_code: stock code
+        :param count: download days
+        """
+
         title = 'https://stock.xueqiu.com/v5/stock/chart/kline.json?'
         market = market_code(stock_code)
         web_name = f'symbol={market}{stock_code}'
@@ -81,12 +88,13 @@ class DownloadData:
         web_end = '&indicator=kline,pe,pb,ps,pcf,market_capital,agt,ggt,balance'
         web_site = f'{title}{web_name}{web_begin}{web_end}'
 
-        pagesource = page_source(web_site, cls.headers, cls.cookies)
+        source = page_source(web_site, cls.headers, cls.cookies)
 
-        json_data = json.loads(pagesource)
+        json_data = json.loads(source)
         data = pd.DataFrame(json_data['data']['item'], columns=json_data['data']['column'])
 
-        data['timestamp'] = pd.to_datetime(data['timestamp'].values, unit='ms', utc=True).tz_convert('Asia/Shanghai').date
+        data['timestamp'] = pd.to_datetime(data['timestamp'].values,
+                                           unit='ms', utc=True).tz_convert('Asia/Shanghai').date
 
         data = data.rename(columns={'timestamp': 'date', 'amount': 'money'})
 
@@ -101,9 +109,9 @@ class DownloadData:
         return data
 
     @classmethod
-    def stock_120m_data(cls, stock_name, stock_code, count):
-        mk = market_code(stock_code)
-        title = f'https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol={mk}{stock_code}&'
+    def data_120m(cls, stock_name, stock_code, count):
+        market = market_code(stock_code)
+        title = f'https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol={market}{stock_code}&'
 
         begin = round((pd.Timestamp('today') + pd.Timedelta(days=1)).timestamp() * 1000)
 
@@ -116,10 +124,10 @@ class DownloadData:
         source = page_source(web_site, cls.headers, cls.cookies)
         json_data = json.loads(source.text)
         data = pd.DataFrame(json_data['data']['item'], columns=json_data['data']['column'])
-        data.loc[:, 'timestamp'] = pd.to_datetime(data['timestamp'], unit='ms') + pd.Timedelta(hours=8)
+        data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms') + pd.Timedelta(hours=8)
 
-        data = data.rename(columns={'timestamp': 'trade_date', 'amount': 'money'})
-        data = data[['trade_date', 'open', 'close', 'high', 'low', 'volume', 'money']]
+        data = data.rename(columns={'timestamp': 'date', 'amount': 'money'})
+        data = data[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
         flt = ['open', 'close', 'high', 'low', 'volume', 'money']
         data[flt] = data[flt].astype(float)
 
@@ -128,7 +136,6 @@ class DownloadData:
 
 
 if __name__ == '__main__':
-    # stock_name = "上证指数"
     code = "000001"
-    download = DownloadData.stock_daily_data(code)
+    download = DownloadData.data_daily(code)
     print(download)

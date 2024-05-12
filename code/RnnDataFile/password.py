@@ -16,10 +16,9 @@ class XueqiuParam:
 
     @classmethod
     def cookies(cls):
-        cookies = {}
         p = os.path.join(password_path, cls.folder, "cookies.txt")
         f = open(p, 'r')
-
+        cookies = {}
         for line in f.read().split(';'):
             name, value = line.strip().split('=', 1)
             cookies[name] = value
@@ -32,7 +31,7 @@ class XueqiuParam:
         f = open(path_, 'r')
         h = {}
         for line in f.readlines():
-            name, value = line.replace("'", "").replace('\n', '').split(':', 1)
+            name, value = line.replace("'", "").replace('\n', '').split(': ', 1)
 
             h[name] = value
 
