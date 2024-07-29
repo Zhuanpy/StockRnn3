@@ -8,6 +8,7 @@ import math
 import pymysql
 from code.Normal import StockCode
 from code.Normal import ReadSaveFile
+from typing import Tuple
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 500)
@@ -52,11 +53,16 @@ class StockDailyData:
         self.file_list = ['E:/SOFT/Finace_software/vipdoc/sz/lday/',
                           'E:/SOFT/Finace_software/vipdoc/sh/lday/']
 
-    def read_stock_file(self):
-        code_list = []
-        market_list = []
-        hs_market_list = []
-        hs_classification_list = []
+    def read_stock_file(self) -> None:
+
+        """
+        读取股票文件列表，解析股票代码、市场代码和分类，并将结果保存到Excel文件中。
+
+        返回:
+        None
+        """
+
+        code_list, market_list, hs_market_list, hs_classification_list = [], [], [], []
 
         for path in self.file_list:
             stock_file = ReadSaveFile.find_all_file(path)
@@ -73,8 +79,12 @@ class StockDailyData:
                 hs_market_list.append(hs_market)
                 hs_classification_list.append(hs_classification)
 
-        df = pd.DataFrame(data={'code': code_list, 'TxMarket': market_list, 'HsMarket': hs_market_list,
-                                'Classification': hs_classification_list})
+        df = pd.DataFrame({
+            'code': code_list,
+            'TxMarket': market_list,
+            'HsMarket': hs_market_list,
+            'Classification': hs_classification_list
+        })
 
         df['code'] = df['code'].astype(str)
 
@@ -89,10 +99,19 @@ class TongXinDaDailyData:
         self.data = None
 
     # 解析日线数据
-    def exact_data(self, FilePath):
+    def exact_data(self, path: str) -> pd.DataFrame:
+        """
+        从指定文件中提取数据，返回一个包含日期、开盘价、收盘价、最高价、最低价、成交量和金额的DataFrame。
+
+        参数:
+        FilePath (str): 文件路径
+
+        返回:
+        pd.DataFrame: 包含提取数据的DataFrame
+        """
 
         try:
-            ofile = open(FilePath, 'rb')
+            ofile = open(path, 'rb')
             buf = ofile.read()
             ofile.close()
             num = len(buf)
@@ -121,7 +140,12 @@ class TongXinDaDailyData:
             df = pd.DataFrame(data=items, columns=columns)
 
         except FileNotFoundError:
+            print(f"File not found: {path}")
             df = pd.DataFrame(data=None)
+
+        except Exception as e:
+            print(f"Error reading file {path}: {e}")
+            df = pd.DataFrame()
 
         return df
 
@@ -143,7 +167,7 @@ class TongXinDaDailyData:
             if file_path:
                 td_date = pd.Timestamp('today').date()
                 table_name = f'{HsMarket}{code}'
-                stock_data = self.exact_data(FilePath=file_path)
+                stock_data = self.exact_data(file_path)
 
                 if len(stock_data):
                     alc.pd_replace(data=stock_data, database='stock_daily_data', table=table_name)
@@ -180,29 +204,62 @@ class TongXinDaDailyData:
         p5.start()
 
 
+def split_data(data: pd.DataFrame, num_chunks: int):
+    """
+    将数据划分为多个块。
+
+    参数:
+    data (pd.DataFrame): 要划分的数据
+    num_chunks (int): 数据块的数量
+
+    返回:
+    Tuple[pd.DataFrame]: 数据块的元组
+    """
+    chunk_size = len(data) // num_chunks
+    chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+
+    return chunks
+
+
 class TongXinDaMinuteData:
 
     def __init__(self):
         self.data = None
 
-    def get_date_str(self, h1, h2) -> str:  # H1->0,1字节; H2->2,3字节;
+    def get_date_str(self, h1: int, h2: int) -> str:
+        """
+        根据两个整数值解析出日期和时间，并返回格式化的字符串。
+
+        参数:
+        h1 (int): 包含年、月、日信息的整数
+        h2 (int): 包含小时、分钟信息的整数
+
+        返回:
+        str: 格式化后的日期时间字符串，格式为 "YYYY-MM-DD HH:MM"
+        """
+        # h1->0,1字节; h2->2,3字节;
+
         year = math.floor(h1 / 2048) + 2004  # 解析出年
         month = math.floor(h1 % 2048 / 100)  # 月
         day = h1 % 2048 % 100  # 日
         hour = math.floor(h2 / 60)  # 小时
         minute = h2 % 60  # 分钟
 
-        if hour < 10:  # 如果小时小于两位, 补0
-            hour = "0" + str(hour)
+        # 使用f-string进行格式化，确保月份、日期、小时和分钟始终为两位数
+        return f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}"
 
-        if minute < 10:  # 如果分钟小于两位, 补0
-            minute = "0" + str(minute)
+    def exact_stock(self, path: str) -> pd.DataFrame:
+        """
+        从指定的二进制文件中提取股票数据，返回一个包含日期、开盘价、收盘价、最高价、最低价、成交量和金额的DataFrame。
 
-        return str(year) + "-" + str(month) + "-" + str(day) + " " + str(hour) + ":" + str(minute)
+        参数:
+        FilePath (str): 文件路径
 
-    def exact_stock(self, FilePath):
+        返回:
+        pd.DataFrame: 包含提取数据的DataFrame
+        """
         try:
-            ofile = open(FilePath, 'rb')
+            ofile = open(path, 'rb')
             buf = ofile.read()
             ofile.close()
             num = len(buf)
@@ -254,7 +311,7 @@ class TongXinDaMinuteData:
 
             if file_path:
                 table_name = f'{MarketCode}'
-                stock_data = self.exact_stock(FilePath=file_path)
+                stock_data = self.exact_stock(file_path)
 
                 if len(stock_data):
                     alc.pd_replace(data=stock_data, database='stock_1m_data', table=table_name)
@@ -263,11 +320,17 @@ class TongXinDaMinuteData:
                     # 更新表格记录信息
                     failed_date = pd.to_datetime('2050-01-01').date()
 
-    def multiple_process_minute_data(self):
+    def multiple_process_minute_data(self) -> None:
+        """
+         使用多进程处理数据。
+         """
+
         self.data = alc.pd_read(database='stock_basic_information', table='record_stock_minute_data')
         self.data = self.data[self.data['StartDate'].isnull()].reset_index(drop=True)
         print(self.data)
-        # exit()
+        # 分割数据
+        num_chunks = 5
+        data_chunks = split_data(self.data, num_chunks)
         num_index = len(self.data)
         index1 = int(num_index * 0.2)
         index2 = int(num_index * 0.4)

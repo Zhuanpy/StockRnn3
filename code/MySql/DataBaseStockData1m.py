@@ -10,7 +10,7 @@ class StockData1m:
     """
 
     @classmethod
-    def load_1m(cls, code_: str, start_year: str, end_year=None):
+    def load_1m(cls, code_: str, start_year: str, end_year=None) -> pd.DataFrame:
         """
          Parameters:
              code_: stock code;
@@ -27,6 +27,7 @@ class StockData1m:
 
         else:
             end_year = pd.Timestamp('today').year
+
         end_year = int(end_year)
 
         if len(start_year) == 4:
@@ -36,8 +37,9 @@ class StockData1m:
 
         df = pd.DataFrame()
 
-        for i in range(end_year - start_year + 1):
-            db = f'data1m{start_year + i}'
+        # Loop through each year in the range and concatenate data
+        for year in range(start_year, end_year + 1):
+            db = f'data1m{year}'
             tb = code_.lower()
             data = Alc.pd_read(db, tb)
             df = pd.concat([df, data], ignore_index=True)
@@ -45,13 +47,22 @@ class StockData1m:
         return df
 
     @classmethod
-    def append_1m(cls, code_: str, year_: str, data):
+    def append_1m(cls, code_: str, year_: str, data: pd.DataFrame):
+        """
+        将数据追加到特定股票代码和年份的数据库中。
+
+        参数:
+            code_: 股票代码;
+            year_: 数据要追加的年份;
+            data: 包含要追加数据的 DataFrame
+        """
+
         db = f'data1m{year_}'
         tb = code_.lower()
         Alc.pd_append(data, db, tb)
 
     @classmethod
-    def replace_1m(cls, code_: str, year_: str, data):
+    def replace_1m(cls, code_: str, year_: str, data: pd.DataFrame):
         db = f'data1m{year_}'
         tb = code_.lower()
         Alc.pd_replace(data, db, tb)
