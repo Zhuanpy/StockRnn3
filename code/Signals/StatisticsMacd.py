@@ -10,7 +10,24 @@ class CountMACD:
 
     @classmethod
     def remark_MACD(cls, data):
-        # '下跌'
+        # data: pd.DataFrame, macd_: str, Signal: str, downInt: int, upInt: int
+        """
+        用于根据MACD指标标注数据的上涨和下跌信号。
+
+        参数:
+        - data (pd.DataFrame): 包含MACD指标的原始数据表。
+        - macd_ (str): MACD指标所在列的名称。
+        - Signal (str): 用于标注信号的列名。
+        - downInt (int): 下跌信号的标识值。
+        - upInt (int): 上涨信号的标识值。
+
+        返回:
+        - pd.DataFrame: 包含标注后的数据表。
+
+        逻辑:
+        - 当当前行的MACD值大于0，而下一行的MACD值小于0时，标注为'下跌'信号。
+        - 当当前行的MACD值小于0，而下一行的MACD值大于0时，标注为'上涨'信号。
+        """
         con01 = (data[macd_] > 0) & (data[macd_].shift(-1) < 0)
         data.loc[con01, Signal] = downInt
 

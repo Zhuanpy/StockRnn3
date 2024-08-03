@@ -74,104 +74,139 @@ class TrainingDataCalculate():
         self.y_column = YColumn()
         self.model_name = ModelName
 
-    def stand_save_parser(self, data, column, drop_duplicates, drop_column):
+    def stand_save_parser(self, data: pd.DataFrame, column, drop_duplicates, drop_column):
 
         """
-           Standardize and save the specified column data.
+        标准化并保存指定列的数据。
 
-           Parameters:
-               data (pd.DataFrame): Input DataFrame.
-               column (str): Column to be standardized.
-               drop_duplicates (bool): Flag indicating whether to drop duplicates.
-               drop_column (str): Name of the column to be dropped if `drop_duplicates` is True.
+        参数:
+            data (pd.DataFrame): 输入的DataFrame。
+            column (str): 要标准化的列名。
+            drop_duplicates (bool): 是否删除重复项的标志。
+            drop_column (str): 如果`drop_duplicates`为True，指定要删除的列名。
 
-           Returns:
-               pd.DataFrame: DataFrame with standardized and saved column.
-           """
+        返回:
+            pd.DataFrame: 经过标准化并保存数据的DataFrame。
+        """
 
+        # 判断是否需要删除重复项
         if drop_duplicates:
 
+            # 根据drop_column的值处理不同情况
             if drop_column == SignalChoice:
                 df = data.dropna(subset=[SignalChoice])
 
             else:
                 df = data.drop_duplicates(subset=[column])
 
+            # 计算中位数和绝对中位差（MAD）
             med = df[column].median()
             mad = abs(df[column] - med).median()
 
         else:
+            # 当不需要删除重复项时，仅计算中位数和MAD
             med = data[column].median()
             mad = abs(data[column] - med).median()
 
+        # 计算上下限值，用于去极值
         high = round(med + (3 * 1.4826 * mad), 2)
         low = round(med - (3 * 1.4826 * mad), 2)
 
-        # 查看参数
+        # 尝试读取历史参数的JSON数据
         try:
-            """ 读取历史的参数json数据 """
             parser_data, pre_month = MyJsonData.find_previous_month_json_parser(self.pre_month, self.stock_code)
 
+            # 提取历史最大最小值
             pre_high = parser_data['TrainingData']['dataDaily'][column]['num_max']
             pre_low = parser_data['TrainingData']['dataDaily'][column]['num_min']
 
         except ValueError:
+            # 如果读取失败，则使用当前计算的high和low值
             pre_high = high
             pre_low = low
 
-        """ 新数据和历史的数据对比 """
+        # 将新数据与历史数据进行对比，取最大和最小值
         high = max([high, pre_high])
         low = min([low, pre_low])
 
-        """ 去极值  """
+        # 去极值处理，确保数据在合理范围内
         data.loc[(data[column] > high), column] = high
         data.loc[(data[column] < low), column] = low
 
-        """ 数据归一化 """
+        # 数据归一化处理
         data[column] = (data[column] - low) / (high - low)
 
+        # 读取当前月的参数JSON数据
         current_parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
+        # 更新当前列的最大最小值参数
         current_parser_data['TrainingData']['dataDaily'][column] = {'num_max': high, 'num_min': low}
-        ReadSaveFile.save_json(current_parser_data, self.month, self.stock_code)  # 更新参数
+
+        # 保存更新后的JSON数据, 更新参数
+        ReadSaveFile.save_json(current_parser_data, self.month, self.stock_code)
 
         return data
 
-    def stand_read_parser(self, data, column):
+    def stand_read_parser(self, data: pd.DataFrame, column: str) -> pd.DataFrame:
+        """
+        读取和应用标准化参数，对指定列的数据进行标准化处理。
+
+        参数:
+            data (pd.DataFrame): 输入的DataFrame。
+            column (str): 要标准化的列名。
+
+        返回:
+            pd.DataFrame: 经过标准化处理的DataFrame。
+        """
+
+        # 读取当前月的参数JSON数据
         parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
 
-        # 获取指定列的训练数据
+        # 获取指定列的训练数据参数
         column_data = parser_data['TrainingData']["dataDaily"][column]
-
         num_max = column_data['num_max']
         num_min = column_data['num_min']
 
         # 使用clip函数将数据限制在最大值和最小值之间
         data[column] = data[column].clip(num_min, num_max)
 
-        # data.loc[data[column] > num_max, column] = num_max
-        # data.loc[data[column] < num_min, column] = num_min
-
+        # 对数据进行归一化处理
         data[column] = (data[column] - num_min) / (num_max - num_min)
+
         return data
 
-    def column_stand(self, data_15m):
-        # 保存 daily_volume_max
+    def column_stand(self, data_15m: pd.DataFrame) -> pd.DataFrame:
+        """
+        标准化处理指定数据列，并根据需要保存和读取标准化参数。
 
+        参数:
+            data_15m (pd.DataFrame): 输入的15分钟频率的数据DataFrame。
+
+        返回:
+            pd.DataFrame: 经过处理和标准化的DataFrame。
+        """
+
+        # 检查是否已经计算了daily_volume_max
         if not self.daily_volume_max:
+
+            # 加载1分钟频率的数据，并进行日期过滤
             _date = '2018-01-01'
             self.data_1m = StockData1m.load_1m(self.stock_code, _date)
             self.data_1m = self.data_1m[self.data_1m['date'] > pd.to_datetime(_date)]
 
+            # 将1分钟数据重采样为每日数据
             data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
             data_daily['date'] = pd.to_datetime(data_daily['date']) + pd.Timedelta(minutes=585)
             data_daily[DailyVolEma] = data_daily['volume'].rolling(90, min_periods=1).mean()
 
+            # 计算daily_volume_max
             self.daily_volume_max = round(data_daily[DailyVolEma].max(), 2)
 
+        # 读取当前月的参数JSON数据并更新daily_volume_max
         parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
         parser_data[DailyVolEma] = self.daily_volume_max
         ReadSaveFile.save_json(parser_data, self.month, self.stock_code)
 
+        # 定义需要保存的列及其相关参数
         save_list = [('volume', False, None),
                      (Daily1mVolMax1, True, Daily1mVolMax1),
                      (Daily1mVolMax5, True, Daily1mVolMax5),
@@ -188,6 +223,7 @@ class TrainingDataCalculate():
                      (CycleAmplitudePerBar, False, None),
                      ('EndDaily1mVolMax5', True, SignalChoice)]
 
+        # 对每列数据进行标准化处理并保存参数
         for i in save_list:
             column = i[0]
             drop_duplicates = i[1]
@@ -195,22 +231,25 @@ class TrainingDataCalculate():
             # todo 验证保存参数的正确性
             data_15m = self.stand_save_parser(data_15m, column, drop_duplicates, drop_column)
 
+        # 定义需要读取的列及其历史参数
         read_dict = {preCycle1mVolMax1: Cycle1mVolMax1,
                      preCycle1mVolMax5: Cycle1mVolMax5,
                      preCycleLengthMax: CycleLengthMax,
                      preCycleAmplitudeMax: CycleAmplitudeMax}
 
+        # 对每列数据进行标准化处理并读取历史参数
         for key, value in read_dict.items():
             # todo 验证保存参数的正确性
             data_15m = self.stand_read_parser(data_15m, value)
 
+        # 删除指定信号的缺失值
         data_15m = data_15m.dropna(subset=[Signal])
 
+        # 获取最新信号的时间，并去除具有相同信号时间的数据
         last_signal_times = data_15m.iloc[-1][SignalTimes]
-
         data_15m = data_15m[data_15m[SignalTimes] != last_signal_times]
 
-        # 选择模型数据
+        # 选择需要的模型数据列
         all_columns = ['date', Signal, SignalTimes, SignalChoice,
                        StartPriceIndex, EndPriceIndex, CycleAmplitudePerBar, CycleAmplitudeMax,
                        Cycle1mVolMax1, Cycle1mVolMax5,
@@ -221,6 +260,7 @@ class TrainingDataCalculate():
                        'volume', Bar1mVolMax5, preCycleAmplitudeMax,
                        'EndDaily1mVolMax5', nextCycleAmplitudeMax]
 
+        # 选择指定的列
         data_15m = data_15m[all_columns]
 
         return data_15m
@@ -640,6 +680,6 @@ if __name__ == '__main__':
     month_ = '2023-10'
     stock_name = '000001'
     running = TrainingDataCalculate(stock_name, month_)
-    data = running.data_calculate()
-    print(data)
+    D = running.data_calculate()
+    print(D)
     # data = running.data_calculate()

@@ -13,121 +13,201 @@ import logging
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
 
+# 配置日志记录
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def show_dl(freq, code):
-    print(f'Success Download {freq} Data: {code};')
+
+def show_download(freq: str, code: str) -> None:
+    """
+    使用 logging 显示下载成功的信息。
+
+    参数:
+        freq (str): 数据频率，如 '1m'。
+        code (str): 股票代码。
+    """
+    logging.info(f'Success Download {freq} Data: {code}')
 
 
-def return_FundsData(source, date_new):
+def return_FundsData(source: str, date_new: pd.Timestamp,
+                     table_index=1, relevant_columns=None) -> pd.DataFrame:
+    """
+    从网页源代码中提取并处理资金数据。
+
+    参数: source (str): 包含HTML表格数据的网页源代码。 date_new (pd.Timestamp): 交易日期，会转换为datetime格式并添加到数据框中。 table_index (int,
+    optional): 指定要读取的表格索引，默认值为1。 relevant_columns (list of str, optional): 返回的数据框中所需的列名，默认值为['trade_date',
+    'stock_code', 'stock_name', 'industry']。
+
+    返回:
+        pd.DataFrame: 包含处理后的资金数据的数据框。
+                       包括指定的列（默认为['trade_date', 'stock_code', 'stock_name', 'industry']）。
+    """
+
+    if relevant_columns is None:
+        relevant_columns = ['trade_date', 'stock_code', 'stock_name', 'industry']
+
+    # 读取指定索引的数据表
+    df = pd.read_html(source)[table_index]
+
+    # 定义所有列名
     columns = ['序号', 'stock_code', 'stock_name', '相关', '今日收盘价', '今日涨跌幅', '今日持股股数',
                '今日持股市值', '今日持股占流通股比', '今日持股占总股本比', '今日增持股数',
                '今日增持市值', '今日增持市值增幅', '今日增持占流通股比', '今日增持占总股本比', 'industry']
 
-    df = pd.read_html(source)[1]
+    # 为DataFrame赋予列名
     df.columns = columns
+
+    # 添加交易日期列
     df['trade_date'] = pd.to_datetime(date_new)
-    df = df[['trade_date', 'stock_code', 'stock_name', 'industry']]
-    df['stock_code'] = df['stock_code'].astype(str)
-    return df
+
+    # 只选择需要的列并返回
+    result_df = df[relevant_columns]
+
+    # 确保stock_code为字符串类型
+    result_df['stock_code'] = result_df['stock_code'].astype(str)
+
+    return result_df
 
 
-def conversion(x):
+def convert_currency_unit(unit: str):
     """
-    货币单位转换函数  Unit conversion
+    货币单位转换函数 (Unit conversion)
+
+    参数:
+        x (str): 货币单位，支持 '亿', '万', '百万', '千万' 等。
+
+    返回:
+        int: 对应货币单位的数值，如果输入单位不匹配，返回1。
     """
 
-    if x == '亿':
-        values = 100000000
+    # 使用字典映射单位与数值
+    unit_mapping = {
+        '亿': 100000000,
+        '万': 10000,
+        '百万': 1000000,
+        '千万': 10000000}
 
-    elif x == '万':
-        values = 10000
+    # 返回对应的数值，如果单位不匹配，返回1
 
-    elif x == '百万':
-        values = 1000000
-
-    elif x == '千万':
-        values = 10000000
-
-    else:
-        values = 1
-
-    return values
+    return unit_mapping.get(unit, 1)
 
 
 def funds_data_clean(data):
-    data = pd.DataFrame(data.values)
-    data = data[[1, 5, 6, 7, 9, 12]]
-    data = data.rename(columns={1: '板块', 5: 'NkPT市值', 6: 'NkPT占板块比',
-                                7: 'NkPT占北向资金比', 9: 'NRPT市值', 12: 'NRPT占北向资金比'})
+    """
+        清理并转换资金数据。
 
-    data['Unit_NKPT'] = data['NkPT市值'].str[-1:]
-    data['NkPT市值'] = data['NkPT市值'].str[:-1].astype(float) * data.Unit_NKPT.apply(lambda x: conversion(x))
-    data['Unit_NRPT'] = data['NRPT市值'].str[-1]
-    data['NRPT市值'] = data['NRPT市值'].str[:-1].astype(float) * data.Unit_NRPT.apply(lambda x: conversion(x))
+        参数:
+            data (pd.DataFrame): 输入的数据框，包含原始资金数据。
 
-    data = data.drop(columns=['Unit_NKPT', 'Unit_NRPT'])
+        返回:
+            pd.DataFrame: 清理并转换后的资金数据。
+        """
+    # 将数据转为DataFrame并选择所需的列
+    data = pd.DataFrame(data.values).iloc[:, [1, 5, 6, 7, 9, 12]]
+
+    # 重命名列
+    data.columns = ['板块', 'NkPT市值', 'NkPT占板块比', 'NkPT占北向资金比', 'NRPT市值', 'NRPT占北向资金比']
+
+    # 定义一个函数来处理单位转换和数值计算
+    def convert_value(value):
+        unit = value[-1]  # 提取单位
+        number = float(value[:-1])  # 提取数字部分并转换为浮点数
+        return number * convert_currency_unit(unit)
+
+    # 应用转换函数到NkPT市值和NRPT市值列
+    data['NkPT市值'] = data['NkPT市值'].apply(convert_value)
+    data['NRPT市值'] = data['NRPT市值'].apply(convert_value)
 
     return data
 
 
-def get_1m_data(source, match=False, multiple=False):
+def parse_json(source: str, match: bool) -> list:
     """
-    parser: multiple => False , Ture
-    """
-    # 最小匹配，保留括号内的Json 数据
+    解析 JSON 数据。
 
+    参数:
+        source (str): 原始数据字符串。
+        match (bool): 是否进行正则匹配。
+
+    返回:
+        list: 解析后的数据列表。
+    """
     if match:
-        p1 = re.compile(r'[(](.*?)[)]', re.S)
-        source = re.findall(p1, source)
-        source = json.loads(source[0])['data']['trends']
+        pattern = re.compile(r'\((.*?)\)', re.S)
+        json_str = re.findall(pattern, source)[0]
 
     else:
-        source = json.loads(source)['data']['trends']
+        json_str = source
 
-    source = [x.split(',') for x in source]
-    # 构建空的Dataframe 保留数据
-    columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'money']
+    return json.loads(json_str)['data']['trends']
 
-    dl = pd.DataFrame(source, columns=columns)
 
-    # stand data
-    dl['date'] = pd.to_datetime(dl['date'])
+def process_data(df: pd.DataFrame, multiple: bool) -> pd.DataFrame:
+    """
+    处理并清理数据。
 
-    flt = ['open', 'close', 'high', 'low', 'volume', 'money']
-    dl[flt] = dl[flt].astype(float)
-    dl['volume'] = dl['volume'] * 100
-    dl[['volume', 'money']] = dl[['volume', 'money']].astype('int64')
+    参数:
+        df (pd.DataFrame): 原始数据框。
+        multiple (bool): 是否将09:30数据合并为09:31数据。
 
-    # 清理 09：30 时间数据，合并为09:31分数据
+    返回:
+        pd.DataFrame: 清理后的数据框。
+    """
+    # 转换数据类型
+    df['date'] = pd.to_datetime(df['date'])
+    df[['open', 'close', 'high', 'low', 'volume', 'money']] = df[
+        ['open', 'close', 'high', 'low', 'volume', 'money']].astype(float)
+    df['volume'] = (df['volume'] * 100).astype('int64')
+    df[['volume', 'money']] = df[['volume', 'money']].astype('int64')
+
     if multiple:
-        dl['day'] = dl['date'].dt.date
-        news = pd.DataFrame()
+        # 添加日期部分用于分组
+        df['day'] = df['date'].dt.date
+        df['time'] = df['date'].dt.time
 
-        for index in dl.drop_duplicates(subset=['day']).index:
-            d1 = dl.loc[index, 'day']
-            df1 = dl[dl['day'] == d1].reset_index(drop=True)
+        # 合并09:30数据到09:31
+        df.loc[df['time'] == pd.Timestamp('09:30:00').time(), 'time'] = pd.Timestamp('09:31:00').time()
 
-            try:
-                df1.loc[1, 'volume'] = df1.loc[0, 'volume'] + df1.loc[1, 'volume']
-                df1.loc[1, 'money'] = df1.loc[0, 'money'] + df1.loc[1, 'money']
-                df1 = df1.iloc[1:].reset_index(drop=True)
-                news = pd.concat([news, df1], ignore_index=True)
+        # 按日期和时间进行分组聚合
+        grouped = df.groupby(['day', 'time']).agg({
+            'date': 'last',
+            'open': 'first',
+            'close': 'last',
+            'high': 'max',
+            'low': 'min',
+            'volume': 'sum',
+            'money': 'sum'
+        }).reset_index(drop=False)
 
-            except KeyError:
-                pass
+        grouped = grouped.drop(columns=['day', 'time'])
 
-        news = news[columns]
+        return grouped
 
     else:
-        try:
-            dl.loc[1, 'volume'] = dl.loc[0, 'volume'] + dl.loc[1, 'volume']
-            dl.loc[1, 'money'] = dl.loc[0, 'money'] + dl.loc[1, 'money']
-            news = dl.iloc[1:].reset_index(drop=True)
+        # 处理单日数据的情况
+        # 合并09:30数据到09:31
+        if df.iloc[0]['date'].time() == pd.Timestamp('09:30:00').time():
+            df.loc[1, ['volume', 'money']] += df.loc[0, ['volume', 'money']]
+            df = df.iloc[1:].reset_index(drop=True)
+        return df
 
-        except KeyError:
-            return pd.DataFrame()
 
-    return news
+def get_1m_data(source: str, match: bool = False, multiple: bool = False) -> pd.DataFrame:
+    """
+    获取1分钟数据并进行清理。
+
+    参数:
+        source (str): 原始数据源。
+        match (bool): 是否进行正则匹配。
+        multiple (bool): 是否将09:30数据合并为09:31数据。
+
+    返回:
+        pd.DataFrame: 清理后的数据框。
+    """
+    trends = parse_json(source, match)
+    columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'money']
+    df = pd.DataFrame([x.split(',') for x in trends], columns=columns)
+
+    return process_data(df, multiple)
 
 
 class DownloadData:
@@ -135,57 +215,84 @@ class DownloadData:
     从东方财富下载数据
     """
 
-    @classmethod
-    def stock_1m_1day(cls, code: str):
+    @staticmethod
+    def _get_source(url: str, headers: dict) -> str:
 
         """
-        # 从东方财富网下载 1 day , 1分钟股票数据
+        获取页面源代码。
+
+        参数:
+            url (str): 请求的URL。
+            headers (dict): 请求头信息。
+
+        返回:
+            str: 页面源代码。
+        """
+        try:
+            return page_source(url, headers=headers)
+
+        except Exception as e:
+            logging.error(f"Error retrieving source from {url}: {e}")
+            return ""
+
+    @staticmethod
+    def _handle_empty_source(code: str):
+        """
+        处理空数据源的情况并记录警告信息。
+
+        参数:
+            code (str): 股票代码。
+        """
+        info_text = f"Failed to retrieve data for {code}. Source is empty."
+        logging.warning(info_text)
+        return pd.DataFrame()
+
+    @classmethod
+    def stock_1m_1day(cls, code: str) -> pd.DataFrame:
+        """
+        从东方财富网下载 1 day , 1分钟股票数据。
+
+        参数:
+            code (str): 股票代码。
+
+        返回:
+            pd.DataFrame: 下载的股票数据。
         """
         headers = my_headers('stock_1m_data')
-        urlcode = UrlCode(code)
-        url = my_url('stock_1m_data').format(urlcode)
-        source = page_source(url, headers=headers)
+        url = my_url('stock_1m_data').format(UrlCode(code))
+        source = cls._get_source(url, headers)
+
+        if not source:
+            return cls._handle_empty_source(code)
+
         dl = get_1m_data(source, match=True)
 
-        show_dl('1m', code)
+        show_download('1m', code)
 
         return dl
 
     @classmethod
-    def stock_1m_days(cls, code: str, days=5):
-
+    def stock_1m_days(cls, code: str, days: int = 5) -> pd.DataFrame:
         """
-        - 从东方财富网下载 N days , 1分钟股票数据 -
+        从东方财富网下载 N days , 1分钟股票数据。
 
-        Download N days of 1-minute stock data from Eastmoney.
+        参数:
+            code (str): 股票代码。
+            days (int): 需要下载的天数，默认为5天。
 
-        Parameters:
-        - code (str): Stock code.
-        - num_days (int): Number of days to retrieve.
-
-        Returns:
-        - pd.DataFrame: Downloaded stock data.
-
+        返回:
+            pd.DataFrame: 下载的股票数据。
         """
-
         headers = my_headers('stock_1m_multiple_days')
-        url_code = UrlCode(code)
-
-        url = my_url('stock_1m_multiple_days')
-
-        url = url.format(days, url_code)  # 东方财富分时数据网址
-
-        source = page_source(url, headers=headers)
+        url = my_url('stock_1m_multiple_days').format(days, UrlCode(code))
+        source = cls._get_source(url, headers)
 
         if not source:
-            # todo 保存下这个日志
-            # error downloading {code} data from 东方财富: {ex}'
-            info_text = f"Failed to retrieve data for {code}. Source is empty."
-            logging.warning(info_text)
-            return pd.DataFrame()
+            return cls._handle_empty_source(code)
 
-        dl = get_1m_data(source, match=True, multiple=True)  # 处理下载数据
-        show_dl('1m', code)  # 打印下载
+        dl = get_1m_data(source, match=True, multiple=True)
+
+        show_download('1m', code)
 
         return dl
 
@@ -195,7 +302,8 @@ class DownloadData:
         url = my_url('board_1m_data').format(code)
         source = page_source(url=url, headers=headers)
         dl = get_1m_data(source, match=True, multiple=False)
-        show_dl('1m', code)  # 打印下载
+
+        show_download('1m', code)  # 打印下载
         return dl
 
     @classmethod
@@ -211,7 +319,7 @@ class DownloadData:
             return pd.DataFrame()
 
         dl = get_1m_data(source, match=False, multiple=True)
-        show_dl('1m', code)
+        show_download('1m', code)
         return dl
 
     @classmethod
@@ -492,10 +600,7 @@ class DownloadData:
 
 
 if __name__ == '__main__':
-    # data = DownloadData.funds_to_sectors('2022-11-15')
-    # data = DownloadData.stock_1m_1day('002475')
+    download = DownloadData.stock_1m_1day('002475')
+    # download = DownloadData.stock_1m_days('002475')
 
-    # data_ = DownloadData.stock_1m_days('002475')
-
-    download = DownloadData.stock_1m_days('002475', 5)
     print(download)

@@ -34,12 +34,13 @@ class ModelData:
         self.y_column = YColumn()
         self.model_name = ModelName
 
-    def load_pre_month_existing_train_data(self, model_name: str):
+    def load_pre_month_existing_train_data(self, model_name: str) -> tuple:
 
-        """ 导入以前的数据
-        find_file_in_paths
-        以前有的月份可能是空的，可能有，这里用一个 try 函数去尝试读取，如果能读取到则返回 前数据文件夹；
+        """
+        导入以前的数据，尝试读取前数据文件夹。
+
         :param model_name: 模型名字
+        :return: 前数据文件夹内容，格式为 (data_x, data_y, pre_month)
         """
 
         file_x = f'{model_name}_{self.stock_code}_x.npy'
@@ -56,7 +57,14 @@ class ModelData:
         except FileNotFoundError:
             return np.zeros([0]), np.empty([0]), None
 
-    def _save_data(self, model_name: str, data_x, data_y):
+    def _save_data(self, model_name: str, data_x: np.ndarray, data_y: np.ndarray) -> None:
+        """
+        保存数据至指定路径。
+
+        :param model_name: 模型名字
+        :param data_x: 训练数据集 X
+        :param data_y: 训练数据集 Y
+        """
         file_x = f'{model_name}_{self.stock_code}_x.npy'
         file_y = f'{model_name}_{self.stock_code}_y.npy'
 
@@ -66,13 +74,17 @@ class ModelData:
         np.save(file_path_x, data_x)
         np.save(file_path_y, data_y)
 
-    def data_common(self, model_name: str, column_x, column_y, height=30, width=30):  # width=w2, height=h1
-        """  这里需要对参数进行说明：
-        :parse model_name: 模型名字
-        :column_x: column x 名称集，
-        :column_y: column y 名称集，
-        :height: & width:  把数据拓展为 30*30 的矩阵, 方便训练
+    def data_common(self, model_name: str,
+                    column_x: list, column_y: list,
+                    height: int = 30, width: int = 30):  # width=w2, height=h1
+        """
+        处理通用数据。
 
+        :param model_name: 模型名字
+        :param column_x: X 数据列名称集
+        :param column_y: Y 数据列名称集
+        :param height: 数据矩阵的高度（默认为30）
+        :param width: 数据矩阵的宽度（默认为30）
         """
 
         data_x, data_y, pre_month = self.load_pre_month_existing_train_data(model_name)  # 加载以前数据
@@ -90,7 +102,7 @@ class ModelData:
             x = pd.concat([x[[Signal]], x], axis=1)
             x = x.to_numpy()
 
-            # 计算填充数据  30*30 矩阵， 数据不足0补充
+            # 填充数据为 30*30 矩阵，不足部分补0
             h = height - x.shape[0]
             w = width - x.shape[1]
 
@@ -104,7 +116,7 @@ class ModelData:
             x.shape = (1, height, width, 1)
             y = y.to_numpy()
 
-            # 判断储存 x y data
+            # 合并数据
             if data_x.shape[0]:
                 data_x = np.append(data_x, x, axis=0)
                 data_y = np.append(data_y, y, axis=0)
@@ -118,22 +130,22 @@ class ModelData:
 
         print(f'{model_name}, shape: {data_x.shape};')
 
-    def data_cycle_length(self):
+    def data_cycle_length(self) -> None:
         x = self.x_columns[0]
         y = self.y_column[0]
         self.data_common(self.model_name[0], x, y)
 
-    def data_cycle_change(self):
+    def data_cycle_change(self) -> None:
         x = self.x_columns[1]
         y = self.y_column[1]
         self.data_common(self.model_name[1], x, y)
 
-    def data_bar_change(self):
+    def data_bar_change(self) -> None:
         x = self.x_columns[2]
         y = self.y_column[2]
         self.data_common(self.model_name[2], x, y)
 
-    def data_bar_volume(self):
+    def data_bar_volume(self) -> None:
         x = self.x_columns[3]
         y = self.y_column[3]
         self.data_common(self.model_name[3], x, y)
@@ -144,7 +156,7 @@ class TrainingDataCalculate(ModelData):
     训练数据处理
     """
 
-    def __init__(self, stock: str, month: str, start_date: str, ):  # _month
+    def __init__(self, stock: str, month: str, start_date: str):  # _month
 
         ModelData.__init__(self)
         self.stock_name, self.stock_code, self.stock_id = Stocks(stock)
@@ -233,14 +245,24 @@ class TrainingDataCalculate(ModelData):
 
         return data
 
-    def stand_read_parser(self, data, column, match):
+    def stand_read_parser(self, data: pd.DataFrame, column: str, match: str) -> pd.DataFrame:
+        """
+        读取标准化参数，并应用于指定列。
+
+        :param data: 输入的 DataFrame
+        :param column: 需要标准化的列名称
+        :param match: 参数匹配的列名称
+        :return: 标准化后的 DataFrame
+        """
         parser_data = ReadSaveFile.read_json(self.month, self.stock_code)
         num_max = parser_data[self.stock_code][match]['num_max']
         num_min = parser_data[self.stock_code][match]['num_min']
 
         data.loc[data[column] > num_max, column] = num_max
         data.loc[data[column] < num_min, column] = num_min
+
         data[column] = (data[column] - num_min) / (num_max - num_min)
+
         return data
 
     def column_stand(self):
@@ -313,7 +335,9 @@ class TrainingDataCalculate(ModelData):
         return self.data_15m
 
     def first_calculate(self):
+
         self.data_15m = ResampleData.resample_1m_data(data=self.data_1m, freq=self.freq)
+
         self.data_15m = SignalMethod.signal_by_MACD_3ema(self.data_15m, self.data_1m).set_index('date', drop=True)
 
         data_daily = ResampleData.resample_1m_data(data=self.data_1m, freq='daily')
@@ -330,7 +354,7 @@ class TrainingDataCalculate(ModelData):
             parser_data = ReadSaveFile.read_json_by_path(file_path)
             pre_daily_volume_max = parser_data[self.stock_code][DailyVolEma]
 
-        except:
+        except :
             pre_daily_volume_max = daily_volume_max
 
         # 使用 max 函数一行完成最大值的更新

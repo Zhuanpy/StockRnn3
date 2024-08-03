@@ -2,6 +2,7 @@ from DataBaseAction import load_tables
 import pymysql
 from code.RnnDataFile.password import sql_password
 from DataBaseStockDataDaily import StockDataDaily
+from code.downloads.DlXueQiu import DownloadData
 from DataBaseStockData1m import StockData1m
 from code.Normal import ResampleData
 import pandas as pd
@@ -11,7 +12,6 @@ def my_cursor(database: str):
     w = sql_password()
     cur = pymysql.connect(host='localhost', user='root', password=w, database=database, charset='utf8', autocommit=True)
     cursor = cur.cursor()
-
     return cur, cursor
 
 
@@ -167,18 +167,26 @@ def add_model_run_colums():
 
 
 def complete_daily_data(stock: str):
+    daily_sq = StockDataDaily.load_daily_data(stock)
+    # daily_data = ResampleData.resample_1m_data(data_1m, 'daily')
+    daily_sq = daily_sq[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
+    print(daily_sq.head(5))
+    print(type(daily_sq.iloc[0]['date']))
+    daily_download = DownloadData.data_daily(stock, count=1000)
+    print(daily_download.head(5))
+    print(type(daily_download.iloc[0]['date']))
 
-    data_1m = StockData1m.load_1m(stock, '2022', '2022')
-    daily_data = ResampleData.resample_1m_data(data_1m, 'daily')
-
-    print(daily_data)
+    """ 新数据：  """
+    new_data = daily_download[~daily_download['date'].isin(daily_sq['date'])]
+    print(new_data)
+    """ 已有数据： """
     exit()
     date = '2024-01-30'
-    daily_data = daily_data[daily_data['date'] == pd.to_datetime(date).date()]
-    StockDataDaily.append_daily_data(stock, daily_data)
+    # daily_data = daily_data[daily_data['date'] == pd.to_datetime(date).date()]
+    # StockDataDaily.append_daily_data(stock, daily_data)
 
     # 保存一个数据试试结果
-    print(daily_data)
+    # print(daily_data)
 
 
 if __name__ == "__main__":

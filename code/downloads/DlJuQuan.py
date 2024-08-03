@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from jqdatasdk import *
 
-# auth('13975124715', '651748264Zz')
+auth('18780645482', 'Xiaohuhu*123')
 
 import pandas as pd
 
@@ -21,6 +21,7 @@ def JQ_code(code: str) -> str:
 
 
 def fuquan_value(fq):
+
     fq_mapping = {
         '前复权': 'pre',
         '后复权': 'post',
@@ -149,4 +150,10 @@ class DownloadData:
 
 
 if __name__ == '__main__':
-    print(JQ_code('000001'))
+    stock = "000001"
+    start_date = "2024-01-01"
+    end_date = "2024-07-01"
+    frequency = "1m"
+    fq_value = '不复权'
+    data = DownloadData.download_history_data(stock, start_date, end_date,frequency=frequency, fq_value=fq_value)
+    print(data)

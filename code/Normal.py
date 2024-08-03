@@ -226,38 +226,60 @@ class ResampleData:
 
         data = data.set_index('index_date')
 
-        rsp = data.resample(parameter, closed='right', label='right').last()
-        rsp['open'] = data['open'].resample(parameter, closed='right', label='right').first()
-        rsp['high'] = data['high'].resample(parameter, closed='right', label='right').max()
-        rsp['low'] = data['low'].resample(parameter, closed='right', label='right').min()
-        rsp['volume'] = data['volume'].resample(parameter, closed='right', label='right').sum()
-        rsp['money'] = data['money'].resample(parameter, closed='right', label='right').sum()
-        rsp = rsp.dropna(how='any').reset_index(drop=True)
-        rsp = rsp[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
+        # 使用 resample 函数按指定的频率对数据进行重采样
+        resampled = data.resample(parameter, closed='right', label='right').agg({
+            'open': 'first',
+            'close': 'last',
+            'high': 'max',
+            'low': 'min',
+            'volume': 'sum',
+            'money': 'sum'
+        })
 
-        return rsp
+        return resampled[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
 
     @classmethod
-    def resample_1m_data(cls, data, freq):
+    def _resample_60m_data(cls, data: pd.DataFrame) -> pd.DataFrame:
+        # 增加 minute_time 列
+        data['minute_time'] = data['date'].dt.time
 
-        if freq in ['15m', '30m', '120m']:
-            time_mappings = {'15m': '15T', '30m': '30T', '120m': '360T'}
-            data = cls.resample_fun(data=data, parameter=time_mappings[freq])
+        # 上午和下午分割数据
+        morning_data = data[data['minute_time'] < pd.to_datetime('12:00:00').time()]
+        afternoon_data = data[data['minute_time'] >= pd.to_datetime('12:00:00').time()]
 
-        if freq == '60m':
-            data.loc[:, 'minute_time'] = data['date'].dt.time
+        # 重新采样
+        morning_data = cls.resample_fun(morning_data, parameter='90T')
+        afternoon_data = cls.resample_fun(afternoon_data, parameter='60T')
 
-            m_df = data[data['minute_time'] < pd.to_datetime('12:00:00').time()]
-            a_df = data[data['minute_time'] > pd.to_datetime('12:00:00').time()]
+        # 合并并排序
+        resampled_data = pd.concat([morning_data, afternoon_data]).sort_values(by='date').reset_index(drop=True)
+        return resampled_data
 
-            m_df = cls.resample_fun(data=m_df, parameter='90T')
-            a_df = cls.resample_fun(data=a_df, parameter='60T')
+    @classmethod
+    def resample_1m_data(cls, data: pd.DataFrame, freq: str) -> pd.DataFrame:
+        # 定义时间映射
+        time_mappings = {
+            '15m': '15T',
+            '30m': '30T',
+            '120m': '360T',
+            '60m': None,  # 特殊处理60分钟的频率
+            'day': '1440T',
+            'daily': '1440T',
+            'd': '1440T',
+            'D': '1440T'
+        }
 
-            data = pd.concat([m_df, a_df]).sort_values(by='date').reset_index(drop=True)
+        if freq in time_mappings:
 
-        if freq in ['day', 'daily', 'd', 'D']:
-            data = cls.resample_fun(data=data, parameter='1440T')
-            data['date'] = pd.to_datetime(data['date']).dt.date
+            # 处理常规时间频率
+            if freq != '60m':
+                data = cls.resample_fun(data=data, parameter=time_mappings[freq])
+
+            else:
+                # 特殊处理60分钟的频率
+                data = cls._resample_60m_data(data)
+        else:
+            raise ValueError(f"Unsupported frequency: {freq}")
 
         return data
 
@@ -294,54 +316,48 @@ class Useful:
 
     @classmethod
     def dashed_line(cls, num):
-        lines = '='
-        line = '-'
-
-        dbl = ''
-        sl = ''
-
-        for _ in range(num):
-            dbl += lines
-            sl += line
-
-        return dbl, sl
+        return '=' * num, '-' * num
 
     @classmethod
     def stock_columns(cls):
-        basic = {1: 'date', 2: 'open', 3: 'close', 4: 'high', 5: 'low', 6: 'volume', 7: 'money'}
+        # 定义各类股票列名的字典
+        par_dic = {
+            'Basic': {
+                1: 'date', 2: 'open', 3: 'close', 4: 'high', 5: 'low', 6: 'volume', 7: 'money'
+            },
+            'Macd': {
+                1: 'EmaShort', 2: 'EmaMid', 3: 'EmaLong', 4: 'DIF', 5: 'DIFSm', 6: 'DIFMl', 7: 'DEA', 8: 'MACD'
+            },
+            'Boll': {
+                1: 'BollMid', 2: 'BollStd', 3: 'BollUp', 4: 'BollDn', 5: 'StopLoss'
+            },
+            'Signal': {
+                1: 'Signal', 2: 'SignalTimes', 3: 'SignalChoice', 4: 'SignalStartIndex'
+            },
+            'cycle': {
+                1: 'EndPrice', 2: 'EndPriceIndex', 3: 'StartPrice', 4: 'StartPriceIndex',
+                5: 'Cycle1mVolMax1', 6: 'Cycle1mVolMax5', 7: 'Bar1mVolMax1', 8: 'Bar1mVolMax5',
+                9: 'CycleLengthMax', 10: 'CycleLengthPerBar', 11: 'CycleAmplitudePerBar', 12: 'CycleAmplitudeMax'
+            },
+            'Signal30m': {
+                1: '30mSignal', 2: '30mSignalChoice', 3: '30mSignalTimes'
+            },
+            'Signal120m': {
+                1: '120mSignal', 2: '120mSignalChoice', 3: '120mSignalTimes'
+            },
+            'SignalDaily': {
+                1: 'Daily1mVolMax1', 2: 'Daily1mVolMax5', 3: 'Daily1mVolMax15', 4: 'VolDailyEmaParser'
+            }
+        }
 
-        macd_columns = {1: 'EmaShort', 2: 'EmaMid', 3: 'EmaLong', 4: 'DIF', 5: 'DIFSm', 6: 'DIFMl', 7: 'DEA', 8: 'MACD'}
-
-        bollumns = {1: 'BollMid', 2: 'BollStd', 3: 'BollUp', 4: 'BollDn', 5: 'StopLoss'}
-
-        signal_columns = {1: 'Signal', 2: 'SignalTimes', 3: 'SignalChoice', 4: 'SignalStartIndex'}
-
-        cycle_columns = {1: 'EndPrice', 2: 'EndPriceIndex', 3: 'StartPrice', 4: 'StartPriceIndex',
-                         5: 'Cycle1mVolMax1', 6: 'Cycle1mVolMax5', 7: 'Bar1mVolMax1', 8: 'Bar1mVolMax5',
-                         9: 'CycleLengthMax', 10: 'CycleLengthPerBar', 11: 'CycleAmplitudePerBar',
-                         12: 'CycleAmplitudeMax'}
-
-        signal_30m = {1: '30mSignal', 2: '30mSignalChoice', 3: '30mSignalTimes'}
-
-        signal_120m = {1: '120mSignal', 2: '120mSignalChoice', 3: '120mSignalTimes'}
-
-        signal_daily = {1: 'Daily1mVolMax1', 2: 'Daily1mVolMax5', 3: 'Daily1mVolMax15', 4: 'VolDailyEmaParser'}
-
-        par_dic = {'Basic': basic, 'Macd': macd_columns, 'Boll': bollumns,
-                   'Signal': signal_columns,
-                   'cycle': cycle_columns,
-                   'Signal30m': signal_30m,
-                   'Signal120m': signal_120m,
-                   'SignalDaily': signal_daily}
-
+        # 获取保存路径并保存为JSON文件
         columns_path = StockDataPath.columns_name_path()
         with open(f'{columns_path}/StockColumns.json', 'w') as f:
-            json.dump(par_dic, f)
+            json.dump(par_dic, f, indent=4)  # 加入缩进以便于阅读
 
         print(par_dic)
+        return par_dic
 
 
 if __name__ == '__main__':
-    # count = PoolCount.count_trend()
-
-
+    count = ""

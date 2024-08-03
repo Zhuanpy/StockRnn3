@@ -2,6 +2,7 @@ from stock_path import StockDataPath
 import json
 import os
 
+
 class MyJsonData:
 
     @classmethod
@@ -25,8 +26,8 @@ class MyJsonData:
 
         path = StockDataPath.json_data_path(month, stock_code)
 
-        with open(path, 'w',  encoding='utf-8') as f:
-            json.dump(new_data, f,  ensure_ascii=False, indent=2)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(new_data, f, ensure_ascii=False, indent=2)
 
     @classmethod
     def modify_nested_dict(cls, json_data, changes):
