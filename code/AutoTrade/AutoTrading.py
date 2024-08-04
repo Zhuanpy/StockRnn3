@@ -5,7 +5,7 @@ from pywinauto.keyboard import send_keys
 import pyautogui as ag
 from time import sleep
 import cv2
-from utils import match_screenshot
+from autotrading_utils import match_screenshot
 import pandas as pd
 import os
 

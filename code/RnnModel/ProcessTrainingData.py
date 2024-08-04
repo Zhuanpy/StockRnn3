@@ -42,7 +42,7 @@ def get_previous_month(current_month):
     return pre_month
 
 
-class TrainingDataCalculate():
+class TrainingDataCalculate:
     """
     训练数据处理
     """

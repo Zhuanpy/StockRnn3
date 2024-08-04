@@ -584,7 +584,7 @@ def load_csv(file_path: str):
 class TongXinDaData:
 
     def __init__(self):
-        self.software_path = r"E:\SOFT\Finace_software"
+        self.software_path = r"E:\SOFT\Finace_software\T0002\export\我的自选股"
 
     def data_SH(self, stock: str):
         file = f"SH#{stock}.csv"
