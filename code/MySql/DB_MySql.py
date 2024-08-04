@@ -94,10 +94,8 @@ class MysqlAlchemy:
 
 
 if __name__ == '__main__':
-    # MysqlAlchemy .;
-    path = sql_password()
-    print(path)
+    # data1m2022.`000001`
     alc = MysqlAlchemy()
-
-    data_ = alc.pd_read(database='stock_basic_information', table='record_stock_minute')
+    data_ = alc.pd_read(database='data1m2022', table='000001')
     print(data_)
+

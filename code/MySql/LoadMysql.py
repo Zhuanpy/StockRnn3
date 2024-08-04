@@ -179,5 +179,5 @@ class RecordStock:
 
 
 if __name__ == '__main__':
-    data_ = LoadBasicInform.load_record_north_funds()
+    data_ = RecordStock.load_record_download_1m_data()
     print(data_)

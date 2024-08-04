@@ -8,10 +8,19 @@ import math
 import pymysql
 from code.Normal import StockCode
 from code.Normal import ReadSaveFile
-from typing import Tuple
+import os
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 500)
+
+
+class DbTongxindaData:
+
+    def __init__(self, primary_key):
+        self.primary_key = primary_key
+
+    def renew_TbRecordStockDailyData(self, column: str, new_data: str):
+        pass
 
 
 def tb_txd_record():
@@ -150,7 +159,7 @@ class TongXinDaDailyData:
         return df
 
     def daily_data(self, num_start, num_end):
-
+        # E:\SOFT\Finace_software\T0002\export
         for index in range(num_start, num_end):
             code = self.data.loc[index, 'code']
             TxdMarket = self.data.loc[index, 'TxdMarket']
@@ -432,12 +441,18 @@ class CombineMinuteData:
     # sh603087 error
     def rename_daily_data_a(self, num_start=None, num_end=None):
 
+        if num_start is None or num_end is None:
+            raise ValueError("num_start and num_end must be provided")
+
+        if num_start < 0 or num_end <= num_start:
+            raise ValueError("num_start must be non-negative and num_end must be greater than num_start")
+
         for i in range(num_start, num_end):
             MarketCode = self.table_list[i][0]
             sql = f'alter table {self.db}.{MarketCode} change amount money int;'
 
             try:
-                execute_sql(database=self.db, sql=sql)
+                execute_sql(database=self.db, sql=sql, params=())
                 print(f'success; {sql}')
 
             except pymysql.err.DataError:
@@ -466,6 +481,26 @@ class CombineMinuteData:
         p5.start()
 
     def rename_daily_data_b(self, num_start=None, num_end=None):
+        """
+        将每日股票数据表中的 'amount' 列重命名为 'money'，并在记录表中更新状态。
+
+        参数:
+            num_start (int, 可选): 处理行的起始索引。默认为 None。
+            num_end (int, 可选): 处理行的结束索引。默认为 None。
+
+        异常:
+            ValueError: 如果 `num_start` 或 `num_end` 为 None，或者 `num_start` 非负且 `num_end` 不大于 `num_start`。
+
+        更新:
+            如果操作成功，`DbTongxindaData` 记录表中的 'Transfer' 列将更新为 'success'，否则更新为 'ffed'。
+        """
+
+        # 参数验证
+        if num_start is None or num_end is None:
+            raise ValueError("num_start 和 num_end 必须提供")
+
+        if num_start < 0 or num_end <= num_start:
+            raise ValueError("num_start 必须非负且 num_end 必须大于 num_start")
 
         for index in range(num_start, num_end):
             MarketCode = self.daily_record.loc[index, 'MarketCode']
@@ -478,7 +513,8 @@ class CombineMinuteData:
 
                 tb.renew_TbRecordStockDailyData(column='Transfer', new_data='success')
 
-            except:
+            except Exception as e:
+                print(f'Error processing MarketCode {MarketCode}: {e}')
                 tb.renew_TbRecordStockDailyData(column='Transfer', new_data='ffed')
                 pass
 
@@ -506,12 +542,58 @@ class CombineMinuteData:
         p5.start()
 
 
+def load_csv(file_path: str):
+    """
+        读取指定路径的CSV文件，跳过前两行头部信息，并返回数据框。
+
+        参数:
+            file_path (str): CSV文件的路径
+
+        返回:
+            pd.DataFrame: 读取的数据框
+
+        """
+    encodings = ['latin-1', 'gbk', 'cp1252', 'utf-8']
+    dtype_spec = {"time": 'str',
+                  "date": 'str'}
+
+    columns = ["date", "time", "open", "close", "high", "low", "volume", "money"]
+
+    for encoding in encodings:
+        try:
+            df = pd.read_csv(file_path, sep='\t', skiprows=2, header=None, names=columns, dtype=dtype_spec,
+                             encoding=encoding)
+
+            df['date'] = pd.to_datetime(df['date'] + ' ' + df['time'], format='%Y/%m/%d  %H%M')
+            df = df.drop(columns=['time'])
+            df = df.dropna(subset=["date"])
+
+            return df
+
+        except UnicodeDecodeError:
+            print(f"编码错误: {encoding} 无法解码文件")
+
+        except Exception as e:
+            print(f"发生错误: {e}")
+
+    print("所有尝试的编码方式均失败")
+
+    return None
+
+
+class TongXinDaData:
+
+    def __init__(self):
+        self.software_path = r"E:\SOFT\Finace_software"
+
+    def data_SH(self, stock: str):
+        file = f"SH#{stock}.csv"
+        path = os.path.join(self.software_path, "T0002", "export", file)
+        df = load_csv(path)
+        return df
+
+
 if __name__ == '__main__':
-    dd = TongXinDaMinuteData()
-    dd.multiple_process_minute_data()
-
-    # dd = TongxindaDailyData()
-    # dd.multiple_process()
-
-    # com = CombineMinuteData()
-    # com.multiple_process_rename_daily_b()
+    file_path = r"E:\SOFT\Finace_software\T0002\export\SH#600006.csv"
+    data = load_csv(file_path)
+    print(data)

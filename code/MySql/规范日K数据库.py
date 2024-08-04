@@ -168,7 +168,6 @@ def add_model_run_colums():
 
 def complete_daily_data(stock: str):
     daily_sq = StockDataDaily.load_daily_data(stock)
-    # daily_data = ResampleData.resample_1m_data(data_1m, 'daily')
     daily_sq = daily_sq[['date', 'open', 'close', 'high', 'low', 'volume', 'money']]
     print(daily_sq.head(5))
     print(type(daily_sq.iloc[0]['date']))

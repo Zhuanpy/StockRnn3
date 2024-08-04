@@ -32,7 +32,7 @@ def correction_date_1m_table():
             print(i)
 
         # 读取1m表格
-        data_1m = StockData1m.load_1m(code_=code, _year='2022')
+        data_1m = StockData1m.load_1m(code_=code, start_year='2022')
 
         data_1m['date'] = pd.to_datetime(data_1m['date'])
         data_1m = data_1m.sort_values(by='date')
