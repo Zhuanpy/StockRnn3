@@ -1,8 +1,9 @@
 import pymysql
 from code.RnnDataFile.password import sql_password
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Float, DateTime, text
+from sqlalchemy import inspect
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
@@ -54,6 +55,21 @@ def execute_sql(database: str, sql: str, params: tuple):
 
 
 def execute_sql_return_value(database: str, sql: str, params: tuple):
+    """
+    执行SQL语句并返回执行结果。
+
+    参数:
+    database (str): 数据库名称或路径。
+    sql (str): 要执行的SQL查询语句。
+    params (tuple): SQL查询中的参数，使用元组传递。
+
+    返回:
+    data: SQL查询的执行结果，通常是受影响的行数或查询的结果集。
+
+    示例:
+    result = execute_sql_return_value('my_database.db', 'SELECT * FROM users WHERE id = ?', (user_id,))
+    """
+
     connection, cursor = sql_cursor(database)
     data = cursor.execute(sql, params)
     return data
@@ -65,12 +81,50 @@ def pandas_conn(database: str):
     return conn
 
 
+def my_engine(database: str):
+    conn = pandas_conn(database)
+    engine = create_engine(conn)
+    return engine
+
+
 def pandas_create_session(database: str):
     conn = pandas_conn(database)
     engine = create_engine(conn)
     DbSession = sessionmaker(bind=engine)
     session = DbSession()
     return session
+
+
+def create_stock_table(database: str, table_name: str):
+    metadata = MetaData()
+    conn = pandas_conn(database)
+    engine = create_engine(conn)
+
+    # 'date', 'open', 'close', 'high', 'low', 'volume', 'money'
+    table = Table(
+        table_name, metadata,
+        Column('date', DateTime, primary_key=True),  # 列 "A" 作为主键，但不自动递增
+        Column('open', Float),
+        Column('close', Float),
+        Column('high', Float),
+        Column('low', Float),
+        Column('volume', Integer),
+        Column('money', Integer),
+        # 你可以根据 DataFrame 的结构添加更多列
+    )
+
+    # 使用 inspect() 检查表格是否存在
+    inspector = inspect(engine)
+    # 检查表格是否存在
+    if not inspector.has_table(table_name):
+        # 如果表格不存在，则创建
+        metadata.create_all(engine)
+        print(f"表格 {table_name} 已创建。")
+
+    else:
+        print(f"表格 {table_name} 已存在，将数据写入表格。")
+
+    return None
 
 
 class MysqlAlchemy:
@@ -93,9 +147,42 @@ class MysqlAlchemy:
         data.to_sql(table, con=conn, if_exists='replace', index=False, chunksize=None, dtype=None)
 
 
+def upsert_dataframe_to_mysql(df: pd.DataFrame, database: str, table_name: str, primary_key: str):
+    """
+    将 DataFrame 数据插入到 MySQL 数据库中，如果主键冲突则更新相应的记录。
+
+    参数:
+    - df: 需要插入或更新的 DataFrame 对象
+    - table_name: MySQL 中的目标表名
+    - primary_key: 主键列的列名
+    - db_config: 数据库连接配置字典，包含 'user', 'password', 'host', 'port', 'database' 键
+
+    """
+
+    # 创建数据库连接引擎
+    engine = my_engine(database)
+
+    # 获取 DataFrame 中的列名
+    columns = df.columns.tolist()
+
+    # 构建 INSERT 语句及 ON DUPLICATE KEY UPDATE 部分
+    insert_stmt = text(f"""
+        INSERT INTO {table_name} ({', '.join(columns)})
+        VALUES ({', '.join([f':{col}' for col in columns])})
+        ON DUPLICATE KEY UPDATE
+        {', '.join([f'{col} = VALUES({col})' for col in columns if col != primary_key])};
+    """)
+
+    # 使用 SQLAlchemy 的连接执行语句
+    with engine.connect() as conn:
+        for index, row in df.iterrows():
+            conn.execute(insert_stmt, {col: row[col] for col in columns})
+
+    print("数据成功写入 MySQL 数据库，并在主键冲突时进行了更新。")
+
+
 if __name__ == '__main__':
     # data1m2022.`000001`
     alc = MysqlAlchemy()
     data_ = alc.pd_read(database='data1m2022', table='000001')
     print(data_)
-

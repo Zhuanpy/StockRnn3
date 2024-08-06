@@ -593,7 +593,48 @@ class TongXinDaData:
         return df
 
 
+def import_csv_to_mysql():
+    # folder_path, mysql_user, mysql_password, mysql_host
+    folder_path = r'E:\SOFT\Finace_software\T0002\export\我的自选股'
+    # 获取文件夹中的所有CSV文件
+    csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+    # print(csv_files)
+    # exit()
+    for file in csv_files:
+        # 读取CSV文件
+        stock_code = file.split('#')[1][:6]
+        print(stock_code)
+        file_path = os.path.join(folder_path, file)
+        # print(file_path)
+        # exit()
+        df = load_csv(file_path)
+
+        # 假设日期列名为'Date'，并且格式为'YYYY-MM-DD HH:MM:SS'
+        df['date'] = pd.to_datetime(df['date'])
+        df['Year'] = df['date'].dt.year
+        grouped = df.groupby('Year')
+
+        for year, data in grouped:
+            # 连接到对应年份的数据库  data1m2024
+            db_name = f'data1m{year}'
+
+            if int(year) < 2024:
+                continue
+
+            create_stock_table(db_name, stock_code)
+
+            data = data.drop(columns=['Year'])
+            alc.pd_append(data, db_name, stock_code)
+
+
 if __name__ == '__main__':
-    file_path = r"E:\SOFT\Finace_software\T0002\export\SH#600006.csv"
-    data = load_csv(file_path)
-    print(data)
+    # file_path = r"E:\SOFT\Finace_software\T0002\export\SH#600006.csv"
+    # data = load_csv(file_path)
+    # print(data)
+    # 示例调用
+    folder_path = '/path/to/your/csv/folder'
+    mysql_user = 'your_mysql_username'
+    mysql_password = 'your_mysql_password'
+    mysql_host = 'localhost'
+
+    import_csv_to_mysql()

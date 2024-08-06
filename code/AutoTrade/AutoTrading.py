@@ -123,8 +123,8 @@ class TongHuaShunAutoTrade:
             price_ (str, optional): 买入价格。默认值为 None。
         """
 
-        path = 'targetfile/buy/'
-        screen = 'targetfile/screenshot.jpg'
+        path = r'targetfile/buy/'
+        screen = r'targetfile/screenshot.jpg'
 
         # 点击买入界面
         tmp = f'{path}f1.jpg'
@@ -350,36 +350,28 @@ class TradePoolFaker:
 
 class TradePoolReal:
     """ 买入数量计算， 持股金额约 5000， 大约5000只持有一手；"""
+    def __init__(self, pool_loader):
+        self.pool_loader = pool_loader
 
-    def buy_num(self, close):
+    def _load_stock_data(self):
+        return self.pool_loader.load_StockPool()
 
-        num_ = 5000 / close
-
-        if num_ <= 100:
-            num_ = 100
-
-        if num_ > 100:
-            num_ = (num_ // 100) * 100 + 100
-
-        return int(num_)
+    def buy_num(self, close: float) -> int:
+        num_ = max(100, int(5000 / close))
+        num_ = (num_ // 100) * 100 + 100 if num_ > 100 else num_
+        return num_
 
     def bottom_down_data(self):
-        data_ = TableStockPool.load_StockPool()
-        data_ = data_[(data_['Trends'] == -1) &
-                      (data_['RnnModel'] < -4.5)]
-        return data_
+        data_ = self._load_stock_data()
+        return data_[(data_['Trends'] == -1) & (data_['RnnModel'] < -4.5)]
 
     def bottom_up_data(self):
-        data_ = TableStockPool.load_StockPool()
-        data_ = data_[(data_['Trends'] == 1) &
-                      (data_['RnnModel'] <= 1.5)]
-        return data_
+        data_ = self._load_stock_data()
+        return data_[(data_['Trends'] == 1) & (data_['RnnModel'] <= 1.5)]
 
     def position_data(self):
-        data_ = TableStockPool.load_StockPool()
-        data_ = data_[(data_['Position'] == 1) &
-                      (data_['TradeMethod'] <= 1)]
-        return data_
+        data_ = self._load_stock_data()
+        return data_[(data_['Position'] == 1) & (data_['TradeMethod'] <= 1)]
 
     def buy_pool(self):
         print(f'Buy Succeed;')
