@@ -17,7 +17,7 @@ def sql_cursor(database: str):
     return connection, cursor
 
 
-def execute_sql(database: str, sql: str, params: tuple):
+def execute_sql(database: str, sql: str, params: tuple = None):
     """
     执行 SQL 查询或更新操作。
 
@@ -35,23 +35,17 @@ def execute_sql(database: str, sql: str, params: tuple):
         connection, cursor = sql_cursor(database)
 
         with connection, cursor:
-            if not params:
+            if params is None:
                 cursor.execute(sql)
 
             else:
                 cursor.execute(sql, params)
 
-            # 如果是查询操作，可以获取数据
-            if sql.strip().lower().startswith('select'):
-                data = cursor.fetchall()
-
-            else:
-                data = "Operation successful"
+            return cursor.fetchall()
 
     except Exception as e:
         print(f"Error updating record: {e}")
-
-    return data
+        return None
 
 
 def execute_sql_return_value(database: str, sql: str, params: tuple):
@@ -167,7 +161,7 @@ def upsert_dataframe_to_mysql(df: pd.DataFrame, database: str, table_name: str, 
 
     # 构建 INSERT 语句及 ON DUPLICATE KEY UPDATE 部分
     insert_stmt = text(f"""
-        INSERT INTO {table_name} ({', '.join(columns)})
+        INSERT INTO `{table_name}` ({', '.join(columns)})
         VALUES ({', '.join([f':{col}' for col in columns])})
         ON DUPLICATE KEY UPDATE
         {', '.join([f'{col} = VALUES({col})' for col in columns if col != primary_key])};
@@ -175,6 +169,7 @@ def upsert_dataframe_to_mysql(df: pd.DataFrame, database: str, table_name: str, 
 
     # 使用 SQLAlchemy 的连接执行语句
     with engine.connect() as conn:
+
         for index, row in df.iterrows():
             conn.execute(insert_stmt, {col: row[col] for col in columns})
 

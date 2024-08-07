@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from DB_MySql import MysqlAlchemy as Alc
+from DB_MySql import execute_sql
 
 
 class StockData1m:
@@ -66,3 +67,41 @@ class StockData1m:
         db = f'data1m{year_}'
         tb = code_.lower()
         Alc.pd_replace(data, db, tb)
+
+
+def update_table_1mdata_date_column_to_id(db_name: str) -> None:
+    """
+    将指定MySQL数据库中所有表格的 `date` 列重命名为 `id`，并设置为主键（PRIMARY KEY）和自动递增（AUTO_INCREMENT）。
+
+    参数:
+        db_name (str): 要连接的MySQL数据库的名称。
+
+    返回:
+        None
+    """
+
+    # 获取所有表格名称
+    sql1 = "SHOW TABLES"
+    tables = execute_sql(db_name, sql1)
+
+    for table in tables:
+        # 获取表格名称
+        table_name = table[0]
+        print(table_name)
+
+        # 将 'date' 列重命名为 'id'
+        sql2 = f"""
+        ALTER TABLE `{db_name}`.`{table_name}` 
+        CHANGE COLUMN `date` `date` DATETIME NOT NULL ,
+        ADD PRIMARY KEY (`date`);
+        ;
+        """
+        execute_sql(db_name, sql2)
+
+        print(f"Table '{table_name}': 'date' column has been renamed to 'id'.")
+
+
+
+
+if __name__ == '__main__':
+    update_table_1mdata_date_column_to_id('data1m2024')

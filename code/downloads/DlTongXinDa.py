@@ -593,9 +593,13 @@ class TongXinDaData:
         return df
 
 
+
+
+
 def import_csv_to_mysql():
     # folder_path, mysql_user, mysql_password, mysql_host
-    folder_path = r'E:\SOFT\Finace_software\T0002\export\我的自选股'
+    # folder_path = r'E:\SOFT\Finace_software\T0002\export\我的自选股'
+    folder_path = r"C:\Users\User\Desktop\临时文件\自选股分钟数据"
     # 获取文件夹中的所有CSV文件
     csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
     # print(csv_files)
@@ -624,7 +628,11 @@ def import_csv_to_mysql():
             create_stock_table(db_name, stock_code)
 
             data = data.drop(columns=['Year'])
-            alc.pd_append(data, db_name, stock_code)
+            print(data.head())
+
+            # alc.pd_append(data, db_name, stock_code)
+            upsert_dataframe_to_mysql(data, db_name, stock_code, 'date')
+            exit()
 
 
 if __name__ == '__main__':

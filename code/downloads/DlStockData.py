@@ -249,7 +249,29 @@ class RMDownloadData(DataDailyRenew):
             self.renew_NorthFunds()  # 北向资金信息
 
 
+def stock_name_data():
+    """
+    download 1m data ;
+    every day running method;
+    """
+    # todo 判断公共假期，周六补充下载数据
+    today = datetime.date.today()
+    current = pd.Timestamp(today)  # 2024-01-09 00:00:00
+
+    record = RecordStock.load_record_download_1m_data()  # alc.pd_read(database=db_basic, table=tb_basic)
+
+    record['EndDate'] = pd.to_datetime(record['EndDate'])
+    record['RecordDate'] = pd.to_datetime(record['RecordDate'])
+    record = record[(record['EndDate'] < current)].reset_index(drop=True)
+    record = record[record['Classification'] != '行业板块']
+    record = record["code"]
+    print(record)
+    path = r"C:\Users\User\Desktop\临时文件"
+    record.to_csv(f'{path}/stock_name.txt', index=False)
+    # 更新股票当天1m信息；
+
 if __name__ == '__main__':
-    rn = DataDailyRenew()
+    # rn = DataDailyRenew()
     # rn.download_1mData()
-    rn.download_1m_data()
+    # rn.download_1m_data()
+    stock_name_data()
