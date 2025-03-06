@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票数据下载</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 给 container 添加样式 */
+        .container {
+            max-width: 1500px; /* 最大宽度设置为800px，可以根据需求调整 */
+            margin: 0 auto; /* 自动左右居中 */
+            padding: 20px; /* 内边距 */
+            border: 1px solid #ddd; /* 边框 */
+            border-radius: 8px; /* 边角圆滑 */
+            background-color: #f9f9f9; /* 背景色 */
+        }
+
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        p {
+            font-size: 16px;
+            color: #666;
+        }
+        #download-status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        #progress-bar {
+            height: 30px;
+            width: 0;
+            background-color: #28a745;
+            transition: width 0.5s;
+            position: relative;
+        }
+        #progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>股票数据下载</h1>
+    
+        <button id="start-download">开始下载</button>
+        <button id="stop-download">结束下载</button>
+        
+        <p id="download-status">下载状态：未开始</p>
+    
+        <div id="progress-container">
+            <div id="progress-bar">
+                <div id="progress-text">0%</div> <!-- 显示进度百分比 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('start-download').onclick = function() {
+            fetch('/download/start-download', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    updateDownloadStatus();
+                } else {
+                    alert('下载正在进行中或已结束！');
+                }
+            });
+        };
+
+        document.getElementById('stop-download').onclick = function() {
+            fetch('/download/stop-download', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    document.getElementById('download-status').innerText = "下载状态：已结束";
+                    document.getElementById('progress-bar').style.width = "0%";  // 重置进度条
+                    document.getElementById('progress-text').innerText = "0%"; // 重置进度文本
+                }
+            });
+        };
+
+        function updateDownloadStatus() {
+            setInterval(() => {
+                fetch('/download/download-status')
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('download-status').innerText = "下载状态：" + data.status;
+                        document.getElementById('progress-bar').style.width = data.progress + "%";  // 更新进度条宽度
+                        document.getElementById('progress-text').innerText = data.progress + "%"; // 更新进度文本
+                    });
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
