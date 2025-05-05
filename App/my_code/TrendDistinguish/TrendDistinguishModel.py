@@ -19,11 +19,11 @@ pd.set_option('display.width', 5000)
 class BuiltModel:
 
     def __init__(self):
-        self.model_path = os.path.join('data', 'output', 'MacdTrend' )
+        self.model_path = os.path.join('code_data', 'output', 'MacdTrend' )
 
     def load_data(self):
 
-        # 导入数据 train data , test data
+        # 导入数据 train code_data , test code_data
         X = np.load(f'{self.model_path}/X.npy')
         Y = np.load(f'{self.model_path}/Y.npy')
 

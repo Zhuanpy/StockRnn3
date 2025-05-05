@@ -16,13 +16,13 @@ def get_times():
 def get_trends_data(num=30):
 
     """
-    get trends data;
+    get trends code_data;
     """
 
     data = TableStockPoolCount.load_poolCount()
     data = data.tail(num).reset_index(drop=True)
     data['date'] = pd.to_datetime(data['date']).dt.strftime('%d%b')
-    # print(data)
+    # print(code_data)
     # exit()
     trends_stock = (list(data['date']),
                     list(data['Up']),

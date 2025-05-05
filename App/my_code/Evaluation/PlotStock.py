@@ -137,7 +137,7 @@ class CommonData:
 
         self.DataHist = self.Data15M[condition].reset_index(drop=True)
 
-        # remove extreme data
+        # remove extreme code_data
         cols = ['Cycle1mVolMax5', 'CycleLengthMax', 'CycleAmplitudeMax']
 
         for col in cols:

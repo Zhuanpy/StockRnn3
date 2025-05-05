@@ -14,7 +14,7 @@ class CountMACD:
         用于根据MACD指标标注数据的上涨和下跌信号。
 
         参数:
-        - data (pd.DataFrame): 包含MACD指标的原始数据表。
+        - code_data (pd.DataFrame): 包含MACD指标的原始数据表。
         - macd_ (str): MACD指标所在列的名称。
         - Signal (str): 用于标注信号的列名。
         - downInt (int): 下跌信号的标识值。
@@ -42,7 +42,7 @@ class CountMACD:
         找出 MACD 信号的时间点并进行标记。
 
         参数:
-        - data (pd.DataFrame): 包含MACD信号数据的原始数据表。
+        - code_data (pd.DataFrame): 包含MACD信号数据的原始数据表。
         - Signal (str): 用于标记信号的列名。
         - downInt (int): 下跌信号的标识值。
         - upInt (int): 上涨信号的标识值。
@@ -70,7 +70,7 @@ class CountMACD:
 
         参数:
         - cls: 类对象（未使用），通常用于类方法的第一个参数
-        - data: pd.DataFrame, 包含原始数据的 DataFrame，其中至少应包含 Signal, SignalTimes, DifMl, DifSm 等列
+        - code_data: pd.DataFrame, 包含原始数据的 DataFrame，其中至少应包含 Signal, SignalTimes, DifMl, DifSm 等列
 
         返回:
         - pd.DataFrame, 处理后的数据，其中无效的信号已被标记为 None
@@ -128,7 +128,7 @@ class CountMACD:
 
         参数:
         - cls: 类对象，用于调用类内的其他方法
-        - data: pd.DataFrame, 包含原始数据的 DataFrame
+        - code_data: pd.DataFrame, 包含原始数据的 DataFrame
 
         返回:
         - pd.DataFrame, 处理后的数据，其中 MACD 信号和相关统计已完成
@@ -169,7 +169,7 @@ class StatisticsMACD:
         计算每个信号选择的开始价格和结束价格及其索引。
 
         参数:
-        - data: pd.DataFrame, 包含股票价格数据的 DataFrame，需要有 'date'、'SignalChoice'、'SignalTimes' 等列
+        - code_data: pd.DataFrame, 包含股票价格数据的 DataFrame，需要有 'date'、'SignalChoice'、'SignalTimes' 等列
 
         返回:
         - pd.DataFrame, 添加了开始价格、结束价格及其索引的数据
@@ -225,7 +225,7 @@ class StatisticsMACD:
          计算信号的开始和结束索引，以及相关的价格信息。
 
          参数:
-         - data (pd.DataFrame): 包含信号和价格数据的数据集，必须包含 'date', 'SignalChoice', 'SignalTimes',
+         - code_data (pd.DataFrame): 包含信号和价格数据的数据集，必须包含 'date', 'SignalChoice', 'SignalTimes',
            'low', 'high', 'Daily1mVolMax5' 等列。
 
          返回:
@@ -278,7 +278,7 @@ class StatisticsMACD:
         计算每个信号周期的振幅，包括每个bar的相对振幅和整个周期的最大振幅。
 
         参数:
-        - data (pd.DataFrame): 包含信号、价格数据的数据集，必须包含'Signal', 'high', 'low', 'StartPrice', 'EndPrice'等列。
+        - code_data (pd.DataFrame): 包含信号、价格数据的数据集，必须包含'Signal', 'high', 'low', 'StartPrice', 'EndPrice'等列。
 
         返回:
         - pd.DataFrame: 添加了'CycleAmplitudePerBar'和'CycleAmplitudeMax'列的data数据集。
@@ -306,11 +306,11 @@ class StatisticsMACD:
          计算每个信号周期内的1分钟最大成交量，以及基于该成交量的5分钟平均成交量。
 
          参数:
-         - data (pd.DataFrame): 包含信号数据的数据集，必须包含 'SignalChoice', 'SignalTimes', 'EndPriceIndex', 'date' 等列。
+         - code_data (pd.DataFrame): 包含信号数据的数据集，必须包含 'SignalChoice', 'SignalTimes', 'EndPriceIndex', 'date' 等列。
          - data1m (pd.DataFrame): 包含1分钟成交量数据的数据集，必须包含 'date' 和 'volume' 列。
 
          返回:
-         - pd.DataFrame: 添加了 'Cycle1mVolMax1' 和 'Cycle1mVolMax5' 列的 data 数据集。
+         - pd.DataFrame: 添加了 'Cycle1mVolMax1' 和 'Cycle1mVolMax5' 列的 code_data 数据集。
          """
 
         # 筛选出 SignalChoice 不为空的行
@@ -351,7 +351,7 @@ class StatisticsMACD:
         计算信号周期的长度以及每个周期中每个bar的位置。
 
         参数:
-        - data (pd.DataFrame): 包含信号数据的数据集，必须包含'SignalChoice'和'SignalTimes'列。
+        - code_data (pd.DataFrame): 包含信号数据的数据集，必须包含'SignalChoice'和'SignalTimes'列。
 
         返回:
         - pd.DataFrame: 添加了'CycleLengthMax'和'CycleLengthPerBar'列的data数据集。
@@ -378,7 +378,7 @@ class StatisticsMACD:
         计算每一天的最大1分钟成交量，以及基于该成交量的5分钟和15分钟平均成交量。
 
         参数:
-        - data (pd.DataFrame): 包含日期信息的原始数据集，必须包含 'date' 列。
+        - code_data (pd.DataFrame): 包含日期信息的原始数据集，必须包含 'date' 列。
         - data1m (pd.DataFrame): 包含1分钟成交量数据的数据集，必须包含 'date' 和 'volume' 列。
 
         返回:
@@ -460,11 +460,11 @@ class StatisticsMACD:
         为每个信号周期计算1分钟最大成交量以及最大5个成交量的平均值。
 
         参数:
-        - data (pd.DataFrame): 包含信号数据的数据集，必须包含 'date' 列。
+        - code_data (pd.DataFrame): 包含信号数据的数据集，必须包含 'date' 列。
         - data1m (pd.DataFrame): 包含1分钟成交量数据的数据集，必须包含 'date' 和 'volume' 列。
 
         返回:
-        - pd.DataFrame: 添加了 'Cycle1mVolMax1' 和 'Cycle1mVolMax5' 列的 data 数据集。
+        - pd.DataFrame: 添加了 'Cycle1mVolMax1' 和 'Cycle1mVolMax5' 列的 code_data 数据集。
         """
         # 使用 find_Bar1mMax 方法为每个时间点计算 1 分钟最大成交量
         data.loc[:, Cycle1mVolMax1] = data['date'].apply(cls.find_Bar1mMax, args=(1, data1m,))

@@ -41,9 +41,9 @@ class Subplot:
     def plot_score_count(cls, ax, data):
         ax.plot(data['date'], data['Up1'], label='Up1', color='red')
         ax.plot(data['date'], data['Up2'], label='Up2', color='#690c0c')
-        # ax.plot(data['date'], data['Up3'], label='Up3')
+        # ax.plot(code_data['date'], code_data['Up3'], label='Up3')
         ax.plot(data['date'], data['Down1'], label='Down1', color='green')
-        # ax.plot(data['date'], data['Down2'], label='Down2')
+        # ax.plot(code_data['date'], code_data['Down2'], label='Down2')
         ax.plot(data['date'], data['Down3'], label='Down3', color='#48a570')
 
         ax.legend(loc='upper left', prop={'size': 6})

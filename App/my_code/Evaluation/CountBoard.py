@@ -21,4 +21,4 @@ for date_ in count_data.date:
 
 
 # count :  stock pool.board
-# renew data·
+# renew code_data·

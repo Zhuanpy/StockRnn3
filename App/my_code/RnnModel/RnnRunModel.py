@@ -86,12 +86,12 @@ class ModelData(Parsers):
 
         except Exception as ex:
             select_15m_time = data_last_150_days
-            print(f'Select 1m data Date Error: {ex}')
+            print(f'Select 1m code_data Date Error: {ex}')
 
         # 从StockData1m 加载1分钟级别的股票数据
         data_1m = StockData1m.load_1m(self.stock_code, str(data_last_150_days.year))
 
-        # 筛选出所需的 data 1m 数据, 大于筛选时间变量 select_15m_time
+        # 筛选出所需的 code_data 1m 数据, 大于筛选时间变量 select_15m_time
         data_1m = data_1m[data_1m['date'] > select_15m_time].drop_duplicates(subset=['date']).reset_index(drop=True)
 
         return data_1m
@@ -159,7 +159,7 @@ class ModelData(Parsers):
             return False
 
         """ 监测时，会出现非整数时间，此时需要把此时间删除
-        例如：new data 中 date = 14:13:00 
+        例如：new code_data 中 date = 14:13:00 
         解决方案： 建立一个 15m minute list,
         如果最后的时间 分钟不在 list中，则不要
         """
@@ -879,7 +879,7 @@ class PredictionCommon(ModelData, DlModel, UpdateData):
         # 生成数据 data_1m, data_15m, checking_data, checking
         self.checking_data = self.calculate_check_data()
 
-        if self.checking_data.empty:  # 判断check date data 是否为空
+        if self.checking_data.empty:  # 判断check date code_data 是否为空
             return False
 
         for s_ in self.checking_data.drop_duplicates(subset=[SignalTimes])[SignalTimes]:  # 判断 SignalTimes 个数

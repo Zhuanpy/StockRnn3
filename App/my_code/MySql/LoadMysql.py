@@ -206,7 +206,7 @@ class MyRecordStock:
     # 批量插入数据
     def insert_data(self, data):
         """
-        将 data 内容插入到 MyRecordStock 表中
+        将 code_data 内容插入到 MyRecordStock 表中
         :param data: list[dict] 数据列表，每个字典表示一条记录
         """
         with self.session_scope() as session:
@@ -216,7 +216,7 @@ class MyRecordStock:
                 session.bulk_save_objects(records)
                 print("Data inserted successfully.")
             except Exception as e:
-                print(f"Failed to insert data: {e}")
+                print(f"Failed to insert code_data: {e}")
 
     # 加载数据方法（用于测试）
     def load_download_1m_data(self):

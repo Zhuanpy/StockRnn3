@@ -58,7 +58,7 @@ def execute_sql_return_value(database: str, sql: str, params: tuple):
     params (tuple): SQL查询中的参数，使用元组传递。
 
     返回:
-    data: SQL查询的执行结果，通常是受影响的行数或查询的结果集。
+    code_data: SQL查询的执行结果，通常是受影响的行数或查询的结果集。
 
     示例:
     result = execute_sql_return_value('my_database.db', 'SELECT * FROM users WHERE id = ?', (user_id,))

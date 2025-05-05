@@ -33,7 +33,7 @@ def distinguish_board(code_, date_, id_=None, freq='120m'):
 
 def board_evaluate(day_, _num, num_, data):
     """
-    all boards data evaluate ,  loop;
+    all boards code_data evaluate ,  loop;
     """
 
     count = 0

@@ -50,7 +50,7 @@ def rnn_data_path(month: str):
     :param month: 月份
     :return: 数据路径
     """
-    return os.path.join(file_root(), 'data', 'RnnData', month)
+    return os.path.join(file_root(), 'code_data', 'RnnData', month)
 
 
 def rnn_data_pre_month_list(month: str, class_file: str) -> tuple:
@@ -65,7 +65,7 @@ def rnn_data_pre_month_list(month: str, class_file: str) -> tuple:
 
     """
 
-    root_path = os.path.join(file_root(), 'data', 'RnnData')
+    root_path = os.path.join(file_root(), 'code_data', 'RnnData')
 
     # 获取RnnData文件夹下全部月份文件夹名称
     folder_names = sorted(

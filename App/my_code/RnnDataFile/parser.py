@@ -17,7 +17,7 @@ def my_url(pp: str):
 def my_headers(pp: str):
 
     """
-    read header data
+    read header code_data
     save to different web heaer to txt and read txt;
     """
     h = {}

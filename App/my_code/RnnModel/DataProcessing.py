@@ -44,13 +44,16 @@ def process_single_stock(file, data_1m_folder, data_1m_last_year_folder, output_
         # 尝试读取去年数据
         try:
             last_year_path = Path(data_1m_last_year_folder) / file
+
             if last_year_path.exists():
                 df_1m_last_year = pd.read_csv(last_year_path, parse_dates=['date'])
                 validate_data(df_1m_last_year)
                 df_1m = pd.concat([df_1m_last_year, df_1m], ignore_index=True)
                 logging.info(f"{stock_symbol}: 成功合并去年数据，合并后行数: {len(df_1m)}")
+
         except FileNotFoundError:
             logging.warning(f"{stock_symbol}: 未找到去年数据文件")
+
         except Exception as e:
             logging.error(f"{stock_symbol}: 处理去年数据时出错 - {str(e)}")
 
@@ -67,6 +70,7 @@ def process_single_stock(file, data_1m_folder, data_1m_last_year_folder, output_
         
         # 筛选目标年份的有效数据
         df_15m = df_15m[(df_15m['Year'] == int(year)) & (~df_15m['Signal'].isnull())]
+
         logging.info(f"{stock_symbol}: 筛选后数据行数: {len(df_15m)}")
         
         if df_15m.empty:
@@ -109,12 +113,21 @@ def process_single_stock(file, data_1m_folder, data_1m_last_year_folder, output_
         logging.error(f"{stock_symbol}: 处理过程出错 - {str(e)}")
         return False
 
-def process_stock_data_for_year(year, data_base_path="E:/MyProject/MyStock/MyStock/Stock_RNN/App/static/data/years"):
-    """处理指定年份的所有股票数据"""
+def process_stock_data_for_year(year, stock_code=None, data_base_path="E:/MyProject/MyStock/MyStock/Stock_RNN/App/static/data/years"):
+    """处理指定年份的股票数据
+    
+    Args:
+        year (str): 要处理的年份
+        stock_code (str, optional): 要处理的股票代码。如果为None，则处理所有股票
+        data_base_path (str): 数据文件基础路径
+    
+    Returns:
+        bool: 处理是否成功
+    """
     try:
         # 准备路径
         data_base_path = Path(data_base_path)
-        output_15m_folder = data_base_path / "15m"
+        output_15m_folder = data_base_path / year / "15m"
         
         # 检查并创建输出目录
         if not output_15m_folder.exists():
@@ -138,7 +151,17 @@ def process_stock_data_for_year(year, data_base_path="E:/MyProject/MyStock/MySto
             raise FileNotFoundError(f"未找到目标年份数据文件夹: {data_1m_folder}")
 
         # 获取需要处理的文件列表
-        files = [f for f in os.listdir(data_1m_folder) if f.endswith('.csv')]
+        if stock_code:
+            # 处理单只股票
+            file = f"{stock_code}.csv"
+            if not (data_1m_folder / file).exists():
+                logging.error(f"未找到股票{stock_code}的数据文件")
+                return False
+            files = [file]
+        else:
+            # 处理所有股票
+            files = [f for f in os.listdir(data_1m_folder) if f.endswith('.csv')]
+            
         if not files:
             logging.warning(f"目标文件夹中没有CSV文件: {data_1m_folder}")
             return False
@@ -178,11 +201,40 @@ def process_stock_data_for_year(year, data_base_path="E:/MyProject/MyStock/MySto
         output_files = list(output_15m_folder.glob("*.csv"))
         logging.info(f"输出目录中的文件数量: {len(output_files)}")
         
-        return True
+        # 如果是处理单只股票，验证输出文件是否存在
+        if stock_code:
+            output_file = output_15m_folder / f"{stock_code}.csv"
+            if not output_file.exists():
+                logging.error(f"处理完成但未找到输出文件: {output_file}")
+                return False
+            if output_file.stat().st_size == 0:
+                logging.error(f"输出文件大小为0: {output_file}")
+                return False
+        
+        return success_count > 0
 
     except Exception as e:
         logging.error(f"处理过程出错: {str(e)}")
         return False
+
+def process_single_standard_stock(file, data_15m_folder, output_15m_folder, year):
+    stock_symbol = file.replace('.csv', '')
+    file_path = Path(data_15m_folder) / file
+
+    # 输出详细的路径信息
+    logging.info(f"处理文件: {file}")
+    logging.info(f"输入路径: {file_path}")
+    logging.info(f"输出文件夹: {output_15m_folder}")
+
+    # 检查输入文件是否存在
+    if not file_path.exists():
+        logging.error(f"输入文件不存在: {file_path}")
+        return False
+
+    # 读取数据
+    df_15m = pd.read_csv(file_path, parse_dates=['date'])
+    """处理单个股票数据"""
+
 
 if __name__ == '__main__':
     # 示例调用

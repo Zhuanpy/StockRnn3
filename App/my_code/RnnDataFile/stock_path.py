@@ -3,7 +3,7 @@ from App.static import file_root
 
 
 class StockDataPath:
-    data_path = os.path.join(file_root(), 'data')
+    data_path = os.path.join(file_root(), 'code_data')
 
     rnn_data_file = 'RnnData'
 
@@ -44,12 +44,12 @@ class StockDataPath:
 
     @classmethod
     def rnnData_folder_path(cls):
-        r = os.path.join(cls.data_path, cls.rnn_data_file)  # os.path.join(file_root(), 'data', 'RnnData')
+        r = os.path.join(cls.data_path, cls.rnn_data_file)  # os.path.join(file_root(), 'code_data', 'RnnData')
         return r
 
 
 class AnalysisDataPath:
-    data_path = os.path.join(file_root(), 'data')
+    data_path = os.path.join(file_root(), 'code_data')
 
     @classmethod
     def analysis_industry_trend_jpg_path(cls, file_name):

@@ -4,3 +4,4 @@ from.RnnModel import RnnRunningRecord, RnnTrainingRecord
 from.StockRecordModels import Top500FundRecord
 from.BasicInformationModels import StockBasicInformationOthersCode, StockBasicInformationStock
 from.StockIssueModels import Issue
+from.RnnTrainingRecords import RnnTrainingRecords

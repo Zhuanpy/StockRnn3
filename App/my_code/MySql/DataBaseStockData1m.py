@@ -6,8 +6,8 @@ from DB_MySql import execute_sql
 
 class StockData1m:
     """
-    _year: data start year ;
-    year_: data end year;
+    _year: code_data start year ;
+    year_: code_data end year;
     """
 
     @classmethod
@@ -15,8 +15,8 @@ class StockData1m:
         """
          Parameters:
              code_: stock code;
-             start_year: data start year; 要求导入数据的开始年； 可以是 四位数年份， 或者带年份的日期；
-             end_year : data end year; 要求导入数据的结束年份；2020, 2020/01/01
+             start_year: code_data start year; 要求导入数据的开始年； 可以是 四位数年份， 或者带年份的日期；
+             end_year : code_data end year; 要求导入数据的结束年份；2020, 2020/01/01
 
          Returns:
         """
@@ -38,7 +38,7 @@ class StockData1m:
 
         df = pd.DataFrame()
 
-        # Loop through each year in the range and concatenate data
+        # Loop through each year in the range and concatenate code_data
         for year in range(start_year, end_year + 1):
             db = f'data1m{year}'
             tb = code_.lower()
@@ -55,7 +55,7 @@ class StockData1m:
         参数:
             code_: 股票代码;
             year_: 数据要追加的年份;
-            data: 包含要追加数据的 DataFrame
+            code_data: 包含要追加数据的 DataFrame
         """
 
         db = f'data1m{year_}'
@@ -102,4 +102,5 @@ def update_table_1mdata_date_column_to_id(db_name: str) -> None:
 
 
 if __name__ == '__main__':
-    update_table_1mdata_date_column_to_id('data1m2024')
+    stock_code = '000001'
+

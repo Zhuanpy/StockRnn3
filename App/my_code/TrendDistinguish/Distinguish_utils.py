@@ -83,7 +83,7 @@ def calculate_distinguish_data(Stock: str, freq: str, date_):
     else:
         _date = pd.to_datetime(date_) + pd.Timedelta(days=-90)
 
-    """ load 1m data & select 1m data """
+    """ load 1m code_data & select 1m code_data """
     _year = str(date_.year)
 
     data = StockData1m.load_1m(Stock, _year)

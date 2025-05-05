@@ -23,7 +23,7 @@ class TrendDistinguishData:
 
     def load_1m(self, _date):
         """
-        load 1m data
+        load 1m code_data
         """
         data = StockData1m.load_1m(self.stock_code, _date)
         data = data[data['date'] >= pd.to_datetime(_date)]
@@ -41,7 +41,7 @@ class TrendDistinguishData:
 
 class CountTrendData(TrendDistinguishData):
     """
-    count trend data
+    count trend code_data
     """
 
     def __init__(self, stock, _date='2019-01-01'):

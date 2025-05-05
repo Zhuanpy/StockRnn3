@@ -1,7 +1,7 @@
 import os
 from App.static import file_root
 
-password_path = os.path.join(file_root(), 'data', 'password')
+password_path = os.path.join(file_root(), 'code_data', 'password')
 
 
 def sql_password():

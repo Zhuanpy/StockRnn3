@@ -37,7 +37,7 @@ def count_daily_data(tb: str):
     return data_day
 
 
-# 整理数据库 daily data , 有些表格没有数据
+# 整理数据库 daily code_data , 有些表格没有数据
 def check_my_daily_data():
     error_list = []
 
@@ -87,7 +87,7 @@ def check_my_daily_data():
         # 失败的数据重新整理
         day_data = count_daily_data(code_)
 
-        #  判断 day data 是否为空
+        #  判断 day code_data 是否为空
         if not day_data.shape:
             error_list = error_list.append(code_)
             continue
@@ -118,7 +118,7 @@ def check_my_daily_data():
                     daily.loc[index, 'Delete'] = 'F'
                     daily.loc[index, 'Ddone'] = 'F'
 
-            # save data
+            # save code_data
             daily.loc[index, 'count'] = 'Y'
             daily.to_csv('dailys.csv', header=True, index=False)
 
@@ -127,7 +127,7 @@ def check_my_daily_data():
 
         print(f'Save success : {code_}')
 
-    # save data
+    # save code_data
     # daily.to_excel('dailys.xlsx', header=True, index=False, mode='w')
     print(f'Save error list: {error_list}')
 

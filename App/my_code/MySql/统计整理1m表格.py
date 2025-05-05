@@ -66,7 +66,7 @@ def awkward_data():
 
 if __name__ == "__main__":
     data = lm.load_minute()
-    # data = awkward_data()
-    # data = data.sort_values(by=['Date', 'count']).tail(50)
-    # print(data)
+    # code_data = awkward_data()
+    # code_data = code_data.sort_values(by=['Date', 'count']).tail(50)
+    # print(code_data)
     # correction_date_1m_table()

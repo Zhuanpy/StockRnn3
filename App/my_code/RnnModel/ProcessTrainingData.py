@@ -80,7 +80,7 @@ class TrainingDataCalculate:
         标准化并保存指定列的数据。
 
         参数:
-            data (pd.DataFrame): 输入的DataFrame。
+            code_data (pd.DataFrame): 输入的DataFrame。
             column (str): 要标准化的列名。
             drop_duplicates (bool): 是否删除重复项的标志。
             drop_column (str): 如果`drop_duplicates`为True，指定要删除的列名。
@@ -151,7 +151,7 @@ class TrainingDataCalculate:
         读取和应用标准化参数，对指定列的数据进行标准化处理。
 
         参数:
-            data (pd.DataFrame): 输入的DataFrame。
+            code_data (pd.DataFrame): 输入的DataFrame。
             column (str): 要标准化的列名。
 
         返回:
@@ -500,7 +500,7 @@ class TrainingDataCalculate:
         self.data1m_start_date = data_1m.iloc[0]['date'].strftime('%Y-%m-%d %H:%M:%S')
         self.data1m_end_date = data_1m.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M:%S')
 
-        # 保存 data 1m 数据, Update JSON data
+        # 保存 code_data 1m 数据, Update JSON code_data
         json_parser = MyJsonData.loadJsonData(self.month, self.stock_code)
         data1m_dic = {"startDate": self.data1m_start_date,
                       "EndDate": self.data1m_end_date}
@@ -682,4 +682,4 @@ if __name__ == '__main__':
     running = TrainingDataCalculate(stock_name, month_)
     D = running.data_calculate()
     print(D)
-    # data = running.data_calculate()
+    # code_data = running.data_calculate()

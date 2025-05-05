@@ -87,7 +87,7 @@ def save_daily_stock_data_to_sql(stock_code, data: pd.DataFrame):
 
     参数：
     - stock_code (str): 股票代码
-    - data (pd.DataFrame): 每天的股票数据 DataFrame，每行包含 date、open_price 等列
+    - code_data (pd.DataFrame): 每天的股票数据 DataFrame，每行包含 date、open_price 等列
     """
     # 动态创建模型类
     DailyStockModel = create_daily_stock_model(stock_code)

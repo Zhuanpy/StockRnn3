@@ -84,7 +84,7 @@ def download_fund_data():
             print("当前下载日期：", download_date)
             print(data)
             # 将下载数据存入数据库
-            # table_name, data
+            # table_name, code_data
             table_name = f"awkward_{download_date}".replace("-", "")
             funds_holdings_to_sql(table_name, data)
             # 更新记录状态为成功，并记录下载日期

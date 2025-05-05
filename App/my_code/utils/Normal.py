@@ -251,7 +251,7 @@ class ResampleData:
         下午：从13:00到15:00，按整点采样。
 
         参数：
-            data (pd.DataFrame): 包含股票1分钟数据的DataFrame，需包含以下列：
+            code_data (pd.DataFrame): 包含股票1分钟数据的DataFrame，需包含以下列：
                 - ' date': 时间戳列 (datetime 类型或字符串时间，需可转换)
                 - 'open', 'close', 'high', 'low', 'volume', 'money'
 

@@ -31,7 +31,7 @@ class StockEvaluator:
         day (str): 要评估的日期。
         start_index (int): 评估起始索引，决定从数据集的哪个位置开始评估。
         end_index (int): 评估结束索引，决定在哪个位置停止评估。
-        data (pd.DataFrame): 包含股票信息的数据集。
+        code_data (pd.DataFrame): 包含股票信息的数据集。
         month (str): 指定月份的参数，用于模型预测。
         check_model (bool): 指示是否需要更新模型检查状态。
     """
@@ -47,7 +47,7 @@ class StockEvaluator:
             day (str): 要评估的日期。
             start_index (int): 评估起始索引。
             end_index (int): 评估结束索引。
-            data (pd.DataFrame): 包含股票信息的数据集。
+            code_data (pd.DataFrame): 包含股票信息的数据集。
             month (str): 指定月份的参数。
             check_model (bool): 是否更新模型检查状态。
         """
@@ -131,7 +131,7 @@ def stock_evaluate(day_: str, _num: int, num_: int, data: pd.DataFrame,
         day_ (str): 要评估的日期，格式为 'YYYY-MM-DD'。
         _num (int): 评估起始索引，表示从数据集中哪个位置开始评估。
         num_ (int): 评估结束索引，表示在哪个位置停止评估。
-        data (pd.DataFrame): 包含股票信息的 Pandas 数据集，至少应包含 'code' 和 'id' 两列。
+        code_data (pd.DataFrame): 包含股票信息的 Pandas 数据集，至少应包含 'code' 和 'id' 两列。
         month_parsers (str): 指定月份的参数，用于模型预测，格式为 'YYYY-MM'。
         check_model (bool): 指示是否需要在评估后更新模型检查状态。
 

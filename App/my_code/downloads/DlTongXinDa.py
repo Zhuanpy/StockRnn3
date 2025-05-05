@@ -64,7 +64,7 @@ class DbTongxindaData:
 
 
 def tb_txd_record():
-    data = pd.read_excel('data/output/Tx_code.xls')
+    data = pd.read_excel('code_data/output/Tx_code.xls')
 
     data.loc[(data['TxMarket'] == 'sh') & (data['HsMarket'] == 'sz'),
              'Classification'] = '指数'
@@ -140,7 +140,7 @@ class StockDailyData:
 
         df['code'] = df['code'].astype(str)
 
-        df.to_excel('data/output/Tx_code.xls', sheet_name='Sheet1', index=False, header=True)
+        df.to_excel('code_data/output/Tx_code.xls', sheet_name='Sheet1', index=False, header=True)
 
         print(df)
 
@@ -261,7 +261,7 @@ def split_data(data: pd.DataFrame, num_chunks: int):
     将数据划分为多个块。
 
     参数:
-    data (pd.DataFrame): 要划分的数据
+    code_data (pd.DataFrame): 要划分的数据
     num_chunks (int): 数据块的数量
 
     返回:
@@ -432,7 +432,7 @@ class CombineMinuteData:
         except pandas.errors.DatabaseError:  # pandas.errors.DatabaseError
             data_1mb = pd.DataFrame(data=None)
 
-        # data combine
+        # code_data combine
         data_all = pd.concat([data_1ma, data_1mb]).drop_duplicates(subset=['date']).sort_values(
             by=['date']).reset_index(drop=True)
 

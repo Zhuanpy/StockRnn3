@@ -19,17 +19,17 @@ class StockType:
 
 def download_1m_by_type(code: str, days: int, stock_type: str):
     """
-    download stock data 1m data , return download data & data end date ;
-    Download stock 1m data from Eastmoney.
+    download stock code_data 1m code_data , return download code_data & code_data end date ;
+    Download stock 1m code_data from Eastmoney.
 
     Parameters:
     - code (str): Stock code.
     - days (int): Number of days to retrieve, 小于5天.
-    - stock_type (str): Type of data to download, should be 'stock_1m' or 'board_1m'.
+    - stock_type (str): Type of code_data to download, should be 'stock_1m' or 'board_1m'.
 
     Returns:
-    - data (pd.DataFrame): Downloaded stock data.
-    - date_end (datetime.date or None): End date of the downloaded data, None if an error occurs.
+    - code_data (pd.DataFrame): Downloaded stock code_data.
+    - date_end (datetime.date or None): End date of the downloaded code_data, None if an error occurs.
     """
 
     try:
@@ -63,7 +63,7 @@ class DataDailyRenew:
     @classmethod
     def download_1m_data(cls):
         """
-        download 1m data ;
+        download 1m code_data ;
         every day running method;
         """
         # todo 判断公共假期，周六补充下载数据
@@ -120,7 +120,7 @@ class DataDailyRenew:
 
                     save_1m_to_mysql(stock_code, year_, data)  # 将下载的1分钟数据，保存至 sql 数据库
 
-                    save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 data 1m 文件夹中
+                    save_1m_to_csv(data, stock_code)  # 将下载的1分钟数据，同时保存至 code_data 1m 文件夹中
 
                     if classification != '行业板块':
                         save_1m_to_daily(data, stock_code)  # 将下载的1分钟数据，同时保存至 daily sql table
@@ -161,7 +161,7 @@ class RMDownloadData(DataDailyRenew):
 
 def stock_name_data():
     """
-    download 1m data ;
+    download 1m code_data ;
     every day running method;
     """
     # todo 判断公共假期，周六补充下载数据

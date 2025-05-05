@@ -144,7 +144,7 @@ for file in os.listdir(data_1m_folder):
         print(f"✅ {stock_symbol} 数据处理完成，已存储！")
 
 
-def process_stock_data_for_year(year, data_base_path="E:/MyProject/MyStock/MyStock/Stock_RNN/App/static/data/years"):
+def process_stock_data_for_year(year, data_base_path="E:/MyProject/MyStock/MyStock/Stock_RNN/App/static/code_data/years"):
     output_15m_folder = f"{data_base_path}/15m"
     os.makedirs(output_15m_folder, exist_ok=True)
     

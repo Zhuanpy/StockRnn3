@@ -21,5 +21,5 @@ def init_exts(app):
         from .models import Download1MRecord
         from .models import Top500FundRecord
         from .models import StockBasicInformationOthersCode, StockBasicInformationStock
-        from .models import Issue
+        from .models import Issue,RnnTrainingRecords
         db.create_all()

@@ -49,7 +49,7 @@ def save_1m_stock_data_to_sql(stock_code, year, data: pd.DataFrame):
     参数：
     - stock_code (str): 股票代码
     - year (int): 年份
-    - data (pd.DataFrame): 股票分时数据的 DataFrame，每行包含 date、open、close 等字段
+    - code_data (pd.DataFrame): 股票分时数据的 DataFrame，每行包含 date、open、close 等字段
     """
     # 动态创建模型类
     StockModel = create_1m_stock_model(stock_code, year)

@@ -82,8 +82,8 @@ class MyJsonData:
                  stock_code (str): 股票名称文件名称；
 
              Returns:
-                 json data: json村出纳的参数.
-                 json data month ： 文件所在文件夹月份名称.
+                 json code_data: json村出纳的参数.
+                 json code_data month ： 文件所在文件夹月份名称.
            """
 
         folder_paths, month_list = cls.previous_month_json_folder_list(month)

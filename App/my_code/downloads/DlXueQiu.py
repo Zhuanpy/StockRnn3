@@ -43,7 +43,7 @@ class DownloadData:
 
         pagesource = page_source(web_site, cls.headers, cls.cookies)
         json_data = json.loads(pagesource.text)
-        data = pd.DataFrame(json_data['data']['items'])
+        data = pd.DataFrame(json_data['code_data']['items'])
 
         data['timestamp'] = pd.to_datetime(data['timestamp'].values, unit='ms', utc=True).tz_convert(
             'Asia/Shanghai').strftime('%Y-%m-%d %H:%M:%S')
@@ -91,7 +91,7 @@ class DownloadData:
         source = page_source(web_site, cls.headers, cls.cookies)
 
         json_data = json.loads(source)
-        data = pd.DataFrame(json_data['data']['item'], columns=json_data['data']['column'])
+        data = pd.DataFrame(json_data['code_data']['item'], columns=json_data['code_data']['column'])
 
         data['timestamp'] = pd.to_datetime(data['timestamp'].values,
                                            unit='ms', utc=True).tz_convert('Asia/Shanghai').date
@@ -123,7 +123,7 @@ class DownloadData:
 
         source = page_source(web_site, cls.headers, cls.cookies)
         json_data = json.loads(source.text)
-        data = pd.DataFrame(json_data['data']['item'], columns=json_data['data']['column'])
+        data = pd.DataFrame(json_data['code_data']['item'], columns=json_data['code_data']['column'])
         data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms') + pd.Timedelta(hours=8)
 
         data = data.rename(columns={'timestamp': 'date', 'amount': 'money'})

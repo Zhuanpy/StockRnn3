@@ -95,7 +95,7 @@ def funds_data_clean(data):
         清理并转换资金数据。
 
         参数:
-            data (pd.DataFrame): 输入的数据框，包含原始资金数据。
+            code_data (pd.DataFrame): 输入的数据框，包含原始资金数据。
 
         返回:
             pd.DataFrame: 清理并转换后的资金数据。
@@ -137,7 +137,7 @@ def parse_json(source: str, match: bool) -> list:
     else:
         json_str = source
 
-    return json.loads(json_str)['data']['trends']
+    return json.loads(json_str)['code_data']['trends']
 
 
 def process_data(df: pd.DataFrame, multiple: bool) -> pd.DataFrame:
@@ -249,7 +249,7 @@ class DownloadData:
         参数:
             code (str): 股票代码。
         """
-        info_text = f"Failed to retrieve data for {code}. Source is empty."
+        info_text = f"Failed to retrieve code_data for {code}. Source is empty."
         logging.warning(info_text)
         return pd.DataFrame()
 
@@ -319,8 +319,8 @@ class DownloadData:
 
         if not source:
             # todo 保存下这个日志
-            # error downloading {code} data from 东方财富: {ex}'
-            logging.warning(f"Failed to retrieve data for {code}. Source is empty.")
+            # error downloading {code} code_data from 东方财富: {ex}'
+            logging.warning(f"Failed to retrieve code_data for {code}. Source is empty.")
             return pd.DataFrame()
 
         dl = get_1m_data(source, match=False, multiple=True)
@@ -377,7 +377,7 @@ class DownloadData:
     def funds_to_stock2(cls):
         """
         ideal:
-        try to use the web link download data;
+        try to use the web link download code_data;
         # http://datacenter-web.eastmoney.com/api/data/v1/get?callback=jQuery112309232266440254648_1657933725762&sortColumns=
         ADD_MARKET_CAP&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_MUTUAL_STOCK_NORTHSTA&columns=
         ALL&source=WEB&client=WEB&filter=(TRADE_DATE%3D%272022-07-15%27)(INTERVAL_TYPE%3D%221%22)
@@ -385,7 +385,7 @@ class DownloadData:
         target:
         last function:
         1. page size = 200;
-        2. down full data
+        2. down full code_data
         """
 
         page_size = 50
@@ -410,7 +410,7 @@ class DownloadData:
 
         p1 = re.compile(r'[(](.*?)[)]', re.S)  # 最小匹配
         dl = re.findall(p1, source)[0]
-        dl = pd.DataFrame(data=json.loads(dl)['result']['data'])
+        dl = pd.DataFrame(data=json.loads(dl)['result']['code_data'])
         dl = dl[['TRADE_DATE', 'NET_INFLOW_SH', 'NET_INFLOW_SZ', 'NET_INFLOW_BOTH']]
         dl.loc[:, 'TRADE_DATE'] = pd.to_datetime(dl['TRADE_DATE']).dt.date
         dl = dl.rename(columns={'TRADE_DATE': 'trade_date'})
@@ -454,7 +454,7 @@ class DownloadData:
     def funds_to_sectors(cls, date_: str):
 
         """
-        north funds to sectors data
+        north funds to sectors code_data
         """
 
         headers = my_headers('funds_to_sectors')
@@ -469,7 +469,7 @@ class DownloadData:
 
             page_data = re.findall(p1, source_)
             json_data = json.loads(page_data[0])
-            json_data = json_data['result']['data']
+            json_data = json_data['result']['code_data']
             # print(json_data)
             value_list = []
             for i in range(len(json_data)):
@@ -529,7 +529,7 @@ class DownloadData:
         if source:
             p1 = re.compile(r'[(](.*?)[)]', re.S)
             page_data = re.findall(p1, source)
-            json_data = json.loads(page_data[0])['data']['diff']
+            json_data = json.loads(page_data[0])['code_data']['diff']
 
             values_list = []
             for i in range(len(json_data)):
