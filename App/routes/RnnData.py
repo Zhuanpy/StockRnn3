@@ -9,7 +9,7 @@ import os
 
 from ..models.RnnTrainingRecords import RnnTrainingRecords
 from ..exts import db
-from App.my_code.RnnModel.DataProcessing import process_stock_data_for_year
+from App.codes.RnnModel.DataProcessing import process_stock_data_for_year
 
 # 配置日志
 logging.basicConfig(

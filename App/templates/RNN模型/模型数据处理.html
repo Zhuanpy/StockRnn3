@@ -752,7 +752,7 @@
                 }
                 return response.json();
             })
-            .then(data => {
+                .then(data => {
                 if (data.status === 'success') {
                     showStatus('standardStatus', data.message, 'success');
                     if (data.data && data.data.result) {

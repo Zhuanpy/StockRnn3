@@ -7,7 +7,7 @@ from datetime import date
 
 from App.models.StockRecordModels import Top500FundRecord
 from App.models.FundsAwkwardModels import funds_holdings_to_sql
-from App.my_code.downloads.DlEastMoney import DownloadData
+from App.codes.downloads.DlEastMoney import DownloadData
 
 # 创建蓝图
 dl_funds_awkward_bp = Blueprint('dl_funds_awkward_bp', __name__)

@@ -1,17 +1,17 @@
-from App.my_code.downloads.DlStockData import RMDownloadData, StockType, download_1m_by_type
+from App.codes.downloads.DlStockData import RMDownloadData, StockType, download_1m_by_type
 import threading
-from App.my_code.utils.Normal import ResampleData
+from App.codes.utils.Normal import ResampleData
 from flask import render_template, current_app, jsonify, Blueprint, copy_current_request_context, request, flash
 from ..models.DownloadModels import Download1MRecord as dlr
 from ..models.StockData1M import save_1m_stock_data_to_sql
 from ..models.StockDataDaily import save_daily_stock_data_to_sql
-from App.my_code.RnnDataFile.stock_path import StockDataPath
+from App.codes.RnnDataFile.stock_path import StockDataPath
 import pandas as pd
 from datetime import date, datetime
 import logging
 # import time
 
-from App.my_code.RnnDataFile.save_download import save_1m_to_csv
+from App.codes.RnnDataFile.save_download import save_1m_to_csv
 
 # 创建蓝图
 dl_bp = Blueprint('dl_bp', __name__)
