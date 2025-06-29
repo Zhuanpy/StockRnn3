@@ -1,18 +1,24 @@
 import pymysql
-from App.codes.RnnDataFile.password import sql_password
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Float, DateTime, text
 from sqlalchemy import inspect
+from config import Config
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 5000)
 
 
 def sql_cursor(database: str):
-    w = sql_password()
-    connection = pymysql.connect(host='localhost', user='root', password=w, database=database, charset='utf8',
-                                 autocommit=True)
+    w = Config.get_sql_password()
+    connection = pymysql.connect(
+        host=Config.DB_CONFIG['host'],
+        user=Config.DB_CONFIG['user'],
+        password=w,
+        database=database,
+        charset=Config.DB_CONFIG['charset'],
+        autocommit=True
+    )
     cursor = connection.cursor()
     return connection, cursor
 
@@ -70,8 +76,8 @@ def execute_sql_return_value(database: str, sql: str, params: tuple):
 
 
 def pandas_conn(database: str):
-    w = sql_password()
-    conn = f'mysql+pymysql://root:{w}@localhost:3306/{database}?charset=utf8'
+    w = Config.get_sql_password()
+    conn = f"mysql+pymysql://{Config.DB_CONFIG['user']}:{w}@{Config.DB_CONFIG['host']}:3306/{database}?charset={Config.DB_CONFIG['charset']}"
     return conn
 
 

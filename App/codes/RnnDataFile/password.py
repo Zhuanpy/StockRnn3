@@ -1,5 +1,6 @@
 import os
 from App.static import file_root
+from config import Config
 
 password_path = os.path.join(file_root(), 'code_data', 'password')
 
@@ -16,26 +17,11 @@ class XueqiuParam:
 
     @classmethod
     def cookies(cls):
-        p = os.path.join(password_path, cls.folder, "cookies.txt")
-        f = open(p, 'r')
-        cookies = {}
-        for line in f.read().split(';'):
-            name, value = line.strip().split('=', 1)
-            cookies[name] = value
-
-        return cookies
+        return Config.get_xueqiu_cookies()
 
     @classmethod
     def headers(cls):
-        path_ = os.path.join(password_path, cls.folder, "headers.txt")
-        f = open(path_, 'r')
-        h = {}
-
-        for line in f.readlines():
-            name, value = line.replace("'", "").replace('\n', '').split(': ', 1)
-            h[name] = value
-
-        return h
+        return Config.get_xueqiu_headers()
 
 
 if __name__ == '__main__':

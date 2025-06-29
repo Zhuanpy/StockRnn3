@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -87,8 +88,6 @@
         main {
             flex: 1;
             padding: 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
             width: 100%;
         }
 
@@ -114,16 +113,16 @@
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <a href="{{ url_for('main.index') }}" class="nav-logo">智能股票交易系统</a>
+            <a href="{{ url_for('main_bp.index') }}" class="nav-logo">智能股票交易系统</a>
             <ul class="nav-menu">
                 <li class="nav-item">
-                    <a href="{{ url_for('dl_bp.download_index_page') }}" {% if request.endpoint == 'dl_bp.download_index_page' %}class="active"{% endif %}>数据获取</a>
+                    <a href="{{ url_for('dl_bp.dl') }}" {% if request.endpoint == 'dl_bp.dl' %}class="active"{% endif %}>数据获取</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ url_for('rnn.rnn_data_page') }}" {% if request.endpoint == 'rnn.rnn_data_page' %}class="active"{% endif %}>RNN模型</a>
+                    <a href="{{ url_for('rnn_bp.rnn') }}" {% if request.endpoint == 'rnn_bp.rnn' %}class="active"{% endif %}>RNN模型</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ url_for('issue_bp.issues_index') }}" {% if request.endpoint == 'issue_bp.issues_index' %}class="active"{% endif %}>问题管理</a>
+                    <a href="{{ url_for('issue_bp.issues') }}" {% if request.endpoint == 'issue_bp.issues' %}class="active"{% endif %}>问题管理</a>
                 </li>
             </ul>
         </div>

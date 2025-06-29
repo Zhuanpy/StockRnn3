@@ -60,10 +60,16 @@ code/MyWeb/Basic
 DataUi/
 share/
 echarts-python-0.1.3/
-data/*.csv
+# data/*.csv
 datasets/
 raw_data/
 processed_data/
 Thumbs.db
-data/
-code_data
+
+# 精确忽略根目录下的数据文件夹
+/data/
+/code_data/
+
+# 但保留App目录下的data文件夹（代码文件）
+!App/models/data/
+!App/**/data/

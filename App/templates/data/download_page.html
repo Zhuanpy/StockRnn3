@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>数据下载中心</h1>
+        <p>选择您需要下载的数据类型</p>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>股票数据</h2>
+            <div class="button-group">
+                <a href="{{ url_for('download_data_bp.download_stock_1m_close_data_today') }}" class="button">
+                    <span>下载今日1分钟收盘数据</span>
+                </a>
+                <a href="{{ url_for('download_data_bp.download_stock_1m_close_data') }}" class="button">
+                    <span>下载历史1分钟收盘数据</span>
+                </a>
+                <a href="{{ url_for('download_data_bp.download_minute_data_page') }}" class="button">
+                    <span>批量下载1分钟收盘数据</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>基金数据</h2>
+            <div class="button-group">
+                <a href="{{ url_for('download_data_bp.download_fund_holdings') }}" class="button">
+                    <span>下载基金持仓数据</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>数据处理</h2>
+            <div class="button-group">
+                <a href="{{ url_for('download_data_bp.resample_to_daily_data') }}" class="button">
+                    <span>1分钟数据重采样为日线</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding: 2rem;
+        background: var(--card-background);
+        border-radius: 1rem;
+        box-shadow: var(--shadow-md);
+    }
+
+    .header h1 {
+        font-size: 2.5rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        font-weight: 700;
+    }
+
+    .header p {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .card {
+        background: var(--card-background);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card h2 {
+        color: var(--primary-color);
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--background-color);
+    }
+
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        background-color: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .button:hover {
+        background-color: var(--secondary-color);
+        transform: translateX(5px);
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            margin: 1rem auto;
+        }
+
+        .header {
+            padding: 1.5rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+        }
+
+        .grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .card {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+</style>
+{% endblock %} 

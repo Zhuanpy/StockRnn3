@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2>批量下载1分钟数据</h2>
+    <div>
+        <button id="startBtn" class="btn btn-primary">开始下载</button>
+        <button id="stopBtn" class="btn btn-danger" disabled>暂停下载</button>
+    </div>
+    <div style="margin-top:20px;">
+        <div>任务状态：<span id="statusText">未开始</span></div>
+        <div>进度：<span id="progressText">0%</span></div>
+        <div class="progress-bar" style="width:300px;height:20px;background:#eee;">
+            <div id="progressBar" style="height:100%;width:0;background:#3b82f6;"></div>
+        </div>
+    </div>
+</div>
+<script>
+let polling = null;
+
+function updateStatus() {
+    fetch('/download-status')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('statusText').innerText = data.status;
+            document.getElementById('progressText').innerText = data.progress + '%';
+            document.getElementById('progressBar').style.width = data.progress + '%';
+            if (data.status === '已完成' || data.status === '已停止' || data.status === '无待下载数据') {
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                clearInterval(polling);
+            }
+        });
+}
+
+document.getElementById('startBtn').onclick = function() {
+    fetch('/start-download', {method: 'POST'})
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            updateStatus();
+            polling = setInterval(updateStatus, 2000);
+        });
+};
+
+document.getElementById('stopBtn').onclick = function() {
+    fetch('/stop-download', {method: 'POST'})
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stopBtn').disabled = true;
+            // 状态会在下次轮询时自动更新
+        });
+};
+</script>
+{% endblock %} 

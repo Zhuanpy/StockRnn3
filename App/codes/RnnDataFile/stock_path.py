@@ -1,5 +1,9 @@
 import os
-from App.static import file_root
+from config import Config
+
+def file_root():
+    """返回项目根目录路径"""
+    return Config.get_project_root()
 
 
 class StockDataPath:

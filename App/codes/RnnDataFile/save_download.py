@@ -6,6 +6,7 @@ import pandas as pd
 from App.utils.file_utils import get_stock_data_path, get_processed_data_path
 from App.codes.MySql.DataBaseStockData1m import StockData1m
 import logging
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def save_1m_to_mysql(stock_code: str, year: str, data):
 
 def save_1m_to_csv(df, stock_code: str):
     """
-    将1分钟级别的股票数据保存为CSV文件
+    将1分钟级别的股票数据保存为CSV文件，按季度保存
     
     Args:
         df: 包含股票数据的DataFrame，需包含 'date' 列
@@ -32,10 +33,19 @@ def save_1m_to_csv(df, stock_code: str):
         if not pd.api.types.is_datetime64_any_dtype(df['date']):
             df['date'] = pd.to_datetime(df['date'])
 
-        # 按月份分组保存数据
-        for name, group in df.groupby(df['date'].dt.strftime('%Y-%m')):
-            # 获取保存路径
-            file_path = get_stock_data_path(stock_code, data_type='1m')
+        # 按季度分组保存数据
+        for name, group in df.groupby(df['date'].dt.to_period('Q')):
+            # 获取季度信息
+            year = name.year
+            quarter = (name.month - 1) // 3 + 1
+            quarter_str = f"Q{quarter}"
+            
+            # 构建保存路径
+            base_dir = os.path.join(Config.get_project_root(), 'data', 'data', 'quarters', str(year), quarter_str)
+            file_path = os.path.join(base_dir, f"{stock_code}.csv")
+            
+            # 确保目录存在
+            os.makedirs(base_dir, exist_ok=True)
             
             # 如果文件存在，读取并合并数据
             if os.path.exists(file_path):
@@ -48,7 +58,7 @@ def save_1m_to_csv(df, stock_code: str):
             
             # 保存数据
             combined_data.to_csv(file_path, index=False)
-            logger.info(f"成功保存1分钟数据到CSV: {stock_code}, 月份: {name}")
+            logger.info(f"成功保存1分钟数据到CSV: {stock_code}, 季度: {year}-{quarter_str}")
             
     except Exception as e:
         logger.error(f"保存1分钟数据到CSV失败: {stock_code}, 错误: {str(e)}")

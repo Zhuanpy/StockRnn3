@@ -1,40 +1,19 @@
 from file_path import *
+from config import Config
 
 
 def my_url(pp: str):
     """
-    find my url setting
+    find my url setting from config
     """
-    ppl = os.path.join(password_path, 'EastMoney', f'Url_{pp}.txt')
-    f2 = open(ppl, 'r')
-    lines = f2.readlines()
-    url = lines[0]
-    url = url.strip('\n')
-    url = url.replace(' ', '')
-    return url
+    return Config.get_eastmoney_urls(pp)
 
 
 def my_headers(pp: str):
-
     """
-    read header code_data
-    save to different web heaer to txt and read txt;
+    read header data from config
     """
-    h = {}
-
-    pph = os.path.join(password_path, 'EastMoney', f'header_{pp}.txt')
-    f2 = open(pph, 'r')
-    lines = f2.readlines()
-
-    for line in lines:
-        line = line.strip('\n')
-        line = line.replace(' ', '')
-        line = line.split(':')
-        keys = line[0]
-        values = line[1]
-        h[keys] = values
-
-    return h
+    return Config.get_eastmoney_headers(pp)
 
 
 if __name__ == '__main__':

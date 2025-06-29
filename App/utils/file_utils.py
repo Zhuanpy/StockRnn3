@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from App.static import file_root
+from config import Config
 import logging
 from datetime import datetime
 
@@ -10,39 +10,24 @@ def ensure_data_directories():
     """
     确保所有必要的数据目录都存在
     """
-    base_dir = os.path.join(file_root(), 'data')
+    # 获取项目根目录
+    base_dir = Path(Config.get_project_root())
     
-    # 定义需要创建的目录结构
+    # 定义需要创建的目录
     directories = [
-        # 原始数据目录
-        os.path.join(base_dir, 'raw', 'stock', '1m'),
-        os.path.join(base_dir, 'raw', 'stock', 'daily'),
-        os.path.join(base_dir, 'raw', 'stock', 'real_time'),
-        os.path.join(base_dir, 'raw', 'funds'),
-        os.path.join(base_dir, 'raw', 'index'),
-        
-        # 处理后的数据目录
-        os.path.join(base_dir, 'processed', 'features'),
-        os.path.join(base_dir, 'processed', 'signals'),
-        os.path.join(base_dir, 'processed', 'indicators'),
-        
-        # 模型相关目录
-        os.path.join(base_dir, 'models', 'trained'),
-        os.path.join(base_dir, 'models', 'checkpoints'),
-        os.path.join(base_dir, 'models', 'predictions'),
-        
-        # 临时数据目录
-        os.path.join(base_dir, 'temp'),
+        base_dir / 'App' / 'codes' / 'code_data',
+        base_dir / 'App' / 'codes' / 'code_data' / 'password',
+        base_dir / 'App' / 'codes' / 'code_data' / 'password' / 'XueQiu',
+        base_dir / 'App' / 'codes' / 'code_data' / 'password' / 'sql.txt',
+        base_dir / 'App' / 'codes' / 'code_data' / 'password' / 'XueQiu' / 'cookies.txt',
+        base_dir / 'App' / 'codes' / 'code_data' / 'password' / 'XueQiu' / 'headers.txt'
     ]
     
+    # 创建目录
     for directory in directories:
-        try:
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-                logger.info(f"创建目录: {directory}")
-        except Exception as e:
-            logger.error(f"创建目录失败 {directory}: {str(e)}")
-            raise
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
+            print(f"Created directory: {directory}")
 
 def get_stock_data_path(stock_code: str, data_type: str = '1m', create: bool = True) -> str:
     """
@@ -59,10 +44,13 @@ def get_stock_data_path(stock_code: str, data_type: str = '1m', create: bool = T
     # 获取当前年月
     now = datetime.now()
     year = str(now.year)
-    month = f"{now.month:02d}"
     
-    # 构建路径
-    base_dir = os.path.join(file_root(), 'data', 'raw', 'stock', data_type, year, month)
+    # 计算季度
+    quarter = (now.month - 1) // 3 + 1
+    quarter_str = f"Q{quarter}"
+    
+    # 构建路径 - 按季度保存到 data/data/quarters
+    base_dir = os.path.join(Config.get_project_root(), 'data', 'data', 'quarters', year, quarter_str)
     
     if create and not os.path.exists(base_dir):
         os.makedirs(base_dir)
@@ -82,7 +70,7 @@ def get_processed_data_path(data_type: str, filename: str, create: bool = True) 
     Returns:
         str: 数据存储路径
     """
-    base_dir = os.path.join(file_root(), 'data', 'processed', data_type)
+    base_dir = os.path.join(Config.get_project_root(), 'data', 'processed', data_type)
     
     if create and not os.path.exists(base_dir):
         os.makedirs(base_dir)
@@ -102,7 +90,7 @@ def get_model_path(model_type: str, filename: str, create: bool = True) -> str:
     Returns:
         str: 模型文件存储路径
     """
-    base_dir = os.path.join(file_root(), 'data', 'models', model_type)
+    base_dir = os.path.join(Config.get_project_root(), 'data', 'models', model_type)
     
     if create and not os.path.exists(base_dir):
         os.makedirs(base_dir)
@@ -121,7 +109,7 @@ def get_temp_path(filename: str, create: bool = True) -> str:
     Returns:
         str: 临时文件存储路径
     """
-    base_dir = os.path.join(file_root(), 'data', 'temp')
+    base_dir = os.path.join(Config.get_project_root(), 'data', 'temp')
     
     if create and not os.path.exists(base_dir):
         os.makedirs(base_dir)

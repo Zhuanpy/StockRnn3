@@ -185,7 +185,7 @@ class MyRecordStock:
     # 初始化数据库连接
     def __init__(self):
 
-        self.db = 'mystockrecord'
+        self.db = 'quanttradingsystem'
         db_url = f'mysql://root:651748264Zz@localhost/{self.db}'
         self.engine = create_engine(db_url)
         self.Session = sessionmaker(bind=self.engine)
