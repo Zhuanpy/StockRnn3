@@ -29,12 +29,12 @@ class Top500FundRecord(db.Model):
     selection = db.Column(db.Integer, nullable=False, default=0, comment='选择状态：1代表选择，0代表未选择')
     
     # 状态信息
-    status = db.Column(db.Text, nullable=False, comment='基金状态下载状态')
-    date = db.Column(db.Date, nullable=False, comment='基金持仓日期')
+    status = db.Column(db.Text, nullable=True, comment='基金状态下载状态')
+    date = db.Column(db.Date, nullable=True, comment='基金持仓日期')
     
-    # 时间戳
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    # 时间戳（可选字段）
+    created_at = db.Column(db.DateTime, nullable=True, comment='创建时间')
+    updated_at = db.Column(db.DateTime, nullable=True, comment='更新时间')
 
     def __repr__(self):
         """
@@ -159,3 +159,64 @@ class Top500FundRecord(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
         }
+
+    @classmethod
+    def get_pending_funds(cls, success_status: str):
+        """
+        获取待下载的基金列表（状态不等于成功状态的记录）
+        
+        Args:
+            success_status: 成功状态标识
+            
+        Returns:
+            List[Top500FundRecord]: 待下载的基金列表
+        """
+        return cls.query.filter(cls.status != success_status).all()
+
+    @classmethod
+    def get_funds_by_selection(cls, selection: int = 1):
+        """
+        根据选择状态获取基金列表
+        
+        Args:
+            selection: 选择状态，1为已选择，0为未选择
+            
+        Returns:
+            List[Top500FundRecord]: 基金列表
+        """
+        return cls.query.filter_by(selection=selection).all()
+
+    def update_download_status(self, status: str, download_date):
+        """
+        更新下载状态和日期
+        
+        Args:
+            status: 新的下载状态
+            download_date: 下载日期
+            
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            # 重新查询数据库中的记录，确保获取最新状态
+            record = Top500FundRecord.query.get(self.id)
+            if record:
+                record.status = status
+                record.date = download_date
+                record.updated_at = datetime.utcnow()
+                db.session.commit()
+                
+                # 更新当前对象的状态
+                self.status = status
+                self.date = download_date
+                self.updated_at = record.updated_at
+                
+                logger.info(f"成功更新基金 {self.code} 的下载状态: {status}")
+                return True
+            else:
+                logger.error(f"未找到基金记录 {self.id} ({self.code})")
+                return False
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"更新基金 {self.code} 下载状态时出错: {str(e)}")
+            return False

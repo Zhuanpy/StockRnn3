@@ -21,12 +21,16 @@ def create_app(config_name='default'):
     # 注册蓝图
     from .routes.views import main_bp, dl_bp, rnn_bp, issue_bp
     from .routes.data.download_data_route import download_data_bp
+    from .routes.data.download_top500_funds_awkward import dl_funds_awkward_bp
+    from .routes.data.download_EastMoney import dl_eastmoney_bp
     from .routes.data.data_management import data_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(dl_bp)
     app.register_blueprint(rnn_bp)
     app.register_blueprint(issue_bp)
     app.register_blueprint(download_data_bp)
+    app.register_blueprint(dl_funds_awkward_bp)
+    app.register_blueprint(dl_eastmoney_bp)
     app.register_blueprint(data_bp)
     
     return app

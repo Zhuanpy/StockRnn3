@@ -40,15 +40,15 @@ def save_stock_data(data: pd.DataFrame, stock_code: str, data_type: str = '1m') 
         logger.error(f"保存数据失败: {stock_code}, 类型: {data_type}, 错误: {str(e)}")
         raise
 
-@dl_eastmoney_bp.route('/download_stock_1m_close_data_today', methods=['GET', 'POST'])
-def download_stock_1m_close_data_today():
+@dl_eastmoney_bp.route('/download_stock_1m_close_data_today_eastmoney', methods=['GET', 'POST'])
+def download_stock_1m_close_data_today_eastmoney():
     if request.method == 'POST':
         stock_code = request.form.get('stock_code')
         logger.info(f"开始下载股票数据: {stock_code}")
 
         if not stock_code:
             flash('请填写完整信息！')
-            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today'))
+            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today_eastmoney'))
         
         try:
             # 下载数据
@@ -59,15 +59,15 @@ def download_stock_1m_close_data_today():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {stock_code}, 错误: {str(e)}")
             flash(f'下载失败: {str(e)}')
-            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today'))
+            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today_eastmoney'))
     
     # 处理 GET 请求
-    return render_template('download/股票下载.html')
+    return render_template('data/股票下载.html')
 
 @dl_eastmoney_bp.route('/download_stock_1m_5days_data', methods=['GET', 'POST'])
 def download_stock_1m_5days_data():
@@ -77,7 +77,7 @@ def download_stock_1m_5days_data():
 
         if not stock_code:
             flash('请填写完整信息！')
-            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today'))
+            return redirect(url_for('download_eastmoney_data.download_stock_1m_close_data_today_eastmoney'))
         
         try:
             # 下载数据
@@ -88,7 +88,7 @@ def download_stock_1m_5days_data():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {stock_code}, 错误: {str(e)}")
@@ -114,7 +114,7 @@ def download_board_1m_close_data_today():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {board_code}, 错误: {str(e)}")
@@ -140,7 +140,7 @@ def download_board_1m_close_data_multiple_days():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {board_code}, 错误: {str(e)}")
@@ -167,7 +167,7 @@ def download_funds_awkward_data():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {fund_code}, 错误: {str(e)}")
@@ -194,7 +194,7 @@ def download_funds_awkward_data_by_driver():
             
             flash('数据获取并保存成功！')
             data_html = data.to_html(classes='table table-striped', index=False)
-            return render_template('download/success.html', data_html=data_html)
+            return render_template('data/success.html', data_html=data_html)
             
         except Exception as e:
             logger.error(f"下载数据失败: {fund_code}, 错误: {str(e)}")
