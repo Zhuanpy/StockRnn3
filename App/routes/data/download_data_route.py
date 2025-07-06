@@ -1,5 +1,6 @@
 from App.codes.downloads.DlStockData import RMDownloadData, StockType, download_1m_by_type
 import threading
+import os
 from App.codes.utils.Normal import ResampleData
 from flask import render_template, current_app, jsonify, Blueprint, copy_current_request_context, request, flash
 from App.models.data.Stock1m import RecordStockMinute as dlr
@@ -69,12 +70,37 @@ def download_file():
 
     # 使用应用上下文以便于访问数据库和其他应用资源
     with current_app.app_context():
+        
+        # 检查是否需要重置所有success记录
+        # 如果record_date和今天不一样，说明数据不是最新的，需要重新下载
+        latest_record = dlr.query.filter(
+            dlr.record_date != date(2050, 1, 1)  # 排除被忽略的股票
+        ).order_by(dlr.record_date.desc()).first()
+        
+        if latest_record and latest_record.record_date != today:
+            logging.info(f"检测到最新记录日期 {latest_record.record_date} 与今天 {today} 不同，重置所有success记录")
+            
+            # 将所有非忽略的success记录重置为pending
+            reset_count = dlr.query.filter(
+                dlr.download_status == 'success',
+                dlr.end_date != date(2050, 1, 1),
+                dlr.record_date != date(2050, 1, 1)
+            ).update({
+                'download_status': 'pending',
+                'download_progress': 0.0,
+                'updated_at': datetime.now()
+            })
+            db.session.commit()
+            
+            logging.info(f"重置了 {reset_count} 条success记录为pending状态")
 
         # 计算符合条件的数据条数（需要下载且日期在今天之前）
         total_count = dlr.query.filter(
             dlr.download_status != 'success',  # 排除已下载成功的记录
-            dlr.end_date < today,  # 下载日期在今天之前
-            dlr.record_date < today  # 记录日期在今天之前
+            dlr.end_date <= today,  # 下载日期在今天或之前
+            dlr.record_date <= today,  # 记录日期在今天或之前
+            dlr.end_date != date(2050, 1, 1),  # 排除被忽略的股票
+            dlr.record_date != date(2050, 1, 1)  # 排除被忽略的股票
         ).count()
 
         if total_count == 0:
@@ -97,8 +123,10 @@ def download_file():
             # 查询符合条件的第一条记录
             first_record = dlr.query.filter(
                 dlr.download_status != 'success',
-                dlr.end_date < today,
-                dlr.record_date < today
+                dlr.end_date <= today,
+                dlr.record_date <= today,
+                dlr.end_date != date(2050, 1, 1),  # 排除被忽略的股票
+                dlr.record_date != date(2050, 1, 1)  # 排除被忽略的股票
             ).first()
 
             if not first_record:
@@ -121,7 +149,10 @@ def download_file():
             record_ending = first_record.end_date
             days = (current - record_ending).days  # 计算自结束日期到当前日期的天数差
 
-            if days <= 0:
+            # 如果end_date等于今天，允许下载今天的数据
+            if days == 0:
+                days = 1
+            elif days < 0:
                 logging.info(f'无最新1M数据: {stock_code}')  # 无更新数据，记录日志
                 continue  # 跳过当前记录
 
@@ -221,6 +252,58 @@ def get_download_status():
     return jsonify({"status": download_status, "progress": download_progress}), 200
 
 
+@download_data_bp.route('/download-statistics', methods=['GET'])
+def get_download_statistics():
+    """获取下载统计数据"""
+    try:
+        today = date.today()
+        
+        # 统计各种状态的记录数量
+        pending_count = dlr.query.filter(
+            dlr.download_status == 'pending',
+            dlr.end_date <= today,
+            dlr.record_date <= today,
+            dlr.end_date != date(2050, 1, 1),
+            dlr.record_date != date(2050, 1, 1)
+        ).count()
+        
+        success_count = dlr.query.filter(
+            dlr.download_status == 'success',
+            dlr.end_date != date(2050, 1, 1),
+            dlr.record_date != date(2050, 1, 1)
+        ).count()
+        
+        failed_count = dlr.query.filter(
+            dlr.download_status == 'failed',
+            dlr.end_date != date(2050, 1, 1),
+            dlr.record_date != date(2050, 1, 1)
+        ).count()
+        
+        processing_count = dlr.query.filter(
+            dlr.download_status == 'processing',
+            dlr.end_date != date(2050, 1, 1),
+            dlr.record_date != date(2050, 1, 1)
+        ).count()
+        
+        # 计算总数（排除被忽略的股票）
+        total_count = dlr.query.filter(
+            dlr.end_date != date(2050, 1, 1),
+            dlr.record_date != date(2050, 1, 1)
+        ).count()
+        
+        return jsonify({
+            "pending": pending_count,
+            "success": success_count,
+            "failed": failed_count,
+            "processing": processing_count,
+            "total": total_count
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"获取下载统计数据时发生错误: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @download_data_bp.route('/stop-download', methods=['GET', 'POST'])
 def stop_download_request():
     global stop_download
@@ -234,12 +317,12 @@ def stop_download_request():
 # def load_progress():
 @download_data_bp.route('/load_progress', methods=['GET'])
 def load_progress():
-    return render_template('download/progress.html')
+    return render_template('data/progress.html')
 
 
 @download_data_bp.route('/download_index_page')
 def download_index_page():
-    return render_template('download/股票下载.html')
+    return render_template('data/股票下载.html')
 
 
 @download_data_bp.route('/daily_renew_data', methods=['GET', 'POST'])
@@ -276,7 +359,7 @@ def resample_to_daily_data():
             except Exception as e:
                 flash(f"文件转换失败: {e}", "danger")
 
-    return render_template('download/resample_to_daily_data.html', stock_code=stock_code, month=month, data_daily=data_daily)
+    return render_template('data/resample_to_daily_data.html', stock_code=stock_code, month=month, data_daily=data_daily)
 
 
 @download_data_bp.route('/download_stock_1m_close_data_today', methods=['GET', 'POST'])
@@ -295,7 +378,7 @@ def download_stock_1m_close_data_today():
                     flash(f"未找到 {stock_code} 的今日数据", "warning")
             except Exception as e:
                 flash(f"下载失败: {str(e)}", "danger")
-    return render_template('download/success.html')
+    return render_template('data/success.html')
 
 
 @download_data_bp.route('/download_stock_1m_close_data', methods=['GET', 'POST'])
@@ -315,7 +398,7 @@ def download_stock_1m_close_data():
                     flash(f"未找到 {stock_code} 的历史数据", "warning")
             except Exception as e:
                 flash(f"下载失败: {str(e)}", "danger")
-    return render_template('download/success.html')
+    return render_template('data/success.html')
 
 
 # @download_data_bp.route('/download_stock_daily_data', methods=['GET', 'POST'])
@@ -352,9 +435,46 @@ def download_fund_holdings():
             flash("成功下载基金持仓数据", "success")
         except Exception as e:
             flash(f"下载失败: {str(e)}", "danger")
-    return render_template('download/success.html')
+    return render_template('data/success.html')
 
 
 @download_data_bp.route('/download_minute_data_page')
 def download_minute_data_page():
     return render_template('data/download_minute_data.html')
+
+@download_data_bp.route('/open_data_folder', methods=['POST'])
+def open_data_folder():
+    """打开1分钟数据文件夹"""
+    try:
+        import subprocess
+        import platform
+        
+        # 获取1分钟数据文件夹路径
+        from config import Config
+        data_folder = os.path.join(Config.get_project_root(), 'data', 'data', 'quarters')
+        
+        # 确保文件夹存在
+        os.makedirs(data_folder, exist_ok=True)
+        
+        # 根据操作系统打开文件夹
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows explorer命令即使成功也可能返回非零状态，所以不使用check=True
+            result = subprocess.run(['explorer', data_folder], capture_output=True, text=True)
+            if result.returncode != 0 and result.stderr:
+                # 只有在有错误输出时才认为是真正的错误
+                raise Exception(f"打开文件夹失败: {result.stderr}")
+        elif system == "Darwin":  # macOS
+            subprocess.run(['open', data_folder], check=True)
+        elif system == "Linux":
+            subprocess.run(['xdg-open', data_folder], check=True)
+        else:
+            return jsonify({"success": False, "message": f"不支持的操作系统: {system}"}), 400
+        
+        logging.info(f"成功打开1分钟数据文件夹: {data_folder}")
+        return jsonify({"success": True, "message": "数据文件夹已打开"}), 200
+        
+    except Exception as e:
+        logging.error(f"打开1分钟数据文件夹时发生错误: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500

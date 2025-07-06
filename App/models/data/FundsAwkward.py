@@ -1,165 +1,220 @@
 """
 基金重仓数据模型
-提供动态创建基金重仓数据表的功能
+提供保存基金重仓数据到本地CSV文件的功能
 """
-from sqlalchemy import Table, Column, Integer, String, MetaData
-from sqlalchemy.exc import SQLAlchemyError
-from App.exts import db
 import pandas as pd
+import os
 import logging
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
 
-def create_funds_holdings_table(table_name: str):
+def get_funds_data_directory():
     """
-    动态生成基金重仓股票数据模型，并保存到按日期命名的 MySQL 表中。
-
-    Args:
-        table_name: 表名，通常为日期格式如 '2024-11-17'
-        
+    获取基金数据保存目录
+    
     Returns:
-        Table: 创建的表对象
+        str: 基金数据保存目录路径
     """
-    try:
-        # 确保运行在 Flask 应用上下文中
-        metadata = MetaData()
-
-        fund_table = Table(
-            table_name,
-            metadata,
-            Column('id', Integer, primary_key=True, autoincrement=True, comment='主键ID'),
-            Column('fund_name', String(255), comment='基金名称'),
-            Column('fund_code', String(50), comment='基金代码'),
-            Column('stock_name', String(255), comment='股票名称'),
-            Column('stock_code', String(50), comment='股票代码'),
-            Column('holdings_ratio', String(20), comment='持仓比例'),
-            Column('market_value', String(50), comment='市值'),
-            Column('shares', String(50), comment='持股数量'),
-        )
-
-        # 使用指定的数据库引擎创建表
-        engine = db.get_engine(bind='funds_awkward')  # 绑定到 'funds_awkward' 数据库
-        metadata.create_all(engine, checkfirst=True)  # 确保表已创建
-        
-        logger.info(f"成功创建基金重仓数据表: {table_name}")
-        return fund_table
-        
-    except Exception as e:
-        logger.error(f"创建基金重仓数据表 {table_name} 时发生错误: {e}")
-        raise
+    # 在项目根目录下创建 data/funds_holdings 目录
+    # 使用更简单的方法：从当前工作目录开始
+    import os
+    current_dir = os.getcwd()
+    funds_dir = os.path.join(current_dir, 'data', 'funds_holdings')
+    
+    # 确保目录存在
+    os.makedirs(funds_dir, exist_ok=True)
+    
+    return funds_dir
 
 
-def save_funds_holdings_to_sql(table_name: str, df: pd.DataFrame) -> bool:
+def save_funds_holdings_to_csv(df: pd.DataFrame, download_date: date = None) -> bool:
     """
-    将基金数据保存到指定的数据库表中。
+    将基金数据保存到本地CSV文件。
     
     Args:
-        table_name: 数据库表名
-        df: pandas.DataFrame 数据框，包含需要插入的数据
+        df: pandas.DataFrame 数据框，包含需要保存的数据
+        download_date: 下载日期，如果为None则使用当前日期
         
     Returns:
         bool: 保存是否成功
     """
     try:
-        # 动态创建表
-        table = create_funds_holdings_table(table_name)
-
-        # 将 DataFrame 转换为字典列表
-        data = df.to_dict(orient='records')
-
-        # 获取数据库引擎并使用事务块
-        engine = db.get_engine(bind='funds_awkward')
-        with engine.begin() as connection:
-            # 批量插入数据
-            connection.execute(table.insert(), data)
-            
-        logger.info(f"成功保存基金重仓数据到表 {table_name}，共 {len(data)} 条记录")
+        if download_date is None:
+            download_date = date.today()
+        
+        # 生成文件名
+        date_str = download_date.strftime('%Y%m%d')
+        filename = f"funds_holdings_{date_str}.csv"
+        
+        # 获取保存目录
+        save_dir = get_funds_data_directory()
+        file_path = os.path.join(save_dir, filename)
+        
+        # 保存到CSV文件
+        df.to_csv(file_path, index=False, encoding='utf-8-sig')
+        
+        logger.info(f"成功保存基金重仓数据到文件: {file_path}，共 {len(df)} 条记录")
         return True
 
-    except SQLAlchemyError as e:
-        logger.error(f"保存基金重仓数据到表 {table_name} 时发生数据库错误: {e}")
-        return False
     except Exception as e:
-        logger.error(f"保存基金重仓数据到表 {table_name} 时发生未知错误: {e}")
+        logger.error(f"保存基金重仓数据到CSV文件时发生错误: {e}")
         return False
 
 
-def get_funds_holdings_from_sql(table_name: str) -> pd.DataFrame:
+def get_funds_holdings_from_csv(download_date: date = None) -> pd.DataFrame:
     """
-    从指定的数据库表中获取基金重仓数据。
+    从本地CSV文件中获取基金重仓数据。
     
     Args:
-        table_name: 数据库表名
+        download_date: 下载日期，如果为None则使用当前日期
         
     Returns:
         pd.DataFrame: 基金重仓数据
     """
     try:
-        # 获取数据库引擎
-        engine = db.get_engine(bind='funds_awkward')
+        if download_date is None:
+            download_date = date.today()
         
-        # 查询数据
-        query = f"SELECT * FROM {table_name}"
-        df = pd.read_sql(query, engine)
+        # 生成文件名
+        date_str = download_date.strftime('%Y%m%d')
+        filename = f"funds_holdings_{date_str}.csv"
         
-        logger.info(f"成功从表 {table_name} 获取基金重仓数据，共 {len(df)} 条记录")
+        # 获取文件路径
+        save_dir = get_funds_data_directory()
+        file_path = os.path.join(save_dir, filename)
+        
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.warning(f"文件不存在: {file_path}")
+            return pd.DataFrame()
+        
+        # 读取CSV文件
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
+        
+        logger.info(f"成功从文件 {file_path} 获取基金重仓数据，共 {len(df)} 条记录")
         return df
         
     except Exception as e:
-        logger.error(f"从表 {table_name} 获取基金重仓数据时发生错误: {e}")
+        logger.error(f"从CSV文件获取基金重仓数据时发生错误: {e}")
         return pd.DataFrame()
 
 
-def get_funds_holdings_by_stock(table_name: str, stock_code: str) -> pd.DataFrame:
+def get_funds_holdings_by_stock(download_date: date = None, stock_code: str = None) -> pd.DataFrame:
     """
-    从指定的数据库表中获取特定股票的基金重仓数据。
+    从本地CSV文件中获取特定股票的基金重仓数据。
     
     Args:
-        table_name: 数据库表名
+        download_date: 下载日期，如果为None则使用当前日期
         stock_code: 股票代码
         
     Returns:
         pd.DataFrame: 特定股票的基金重仓数据
     """
     try:
-        # 获取数据库引擎
-        engine = db.get_engine(bind='funds_awkward')
+        df = get_funds_holdings_from_csv(download_date)
         
-        # 查询特定股票的数据
-        query = f"SELECT * FROM {table_name} WHERE stock_code = '{stock_code}'"
-        df = pd.read_sql(query, engine)
+        if df.empty or stock_code is None:
+            return df
         
-        logger.info(f"成功从表 {table_name} 获取股票 {stock_code} 的基金重仓数据，共 {len(df)} 条记录")
-        return df
+        # 筛选特定股票的数据
+        result_df = df[df['stock_code'] == stock_code]
+        
+        logger.info(f"成功获取股票 {stock_code} 的基金重仓数据，共 {len(result_df)} 条记录")
+        return result_df
         
     except Exception as e:
-        logger.error(f"从表 {table_name} 获取股票 {stock_code} 的基金重仓数据时发生错误: {e}")
+        logger.error(f"获取股票 {stock_code} 的基金重仓数据时发生错误: {e}")
         return pd.DataFrame()
 
 
-def get_funds_holdings_by_fund(table_name: str, fund_code: str) -> pd.DataFrame:
+def get_funds_holdings_by_fund(download_date: date = None, fund_code: str = None) -> pd.DataFrame:
     """
-    从指定的数据库表中获取特定基金的持仓数据。
+    从本地CSV文件中获取特定基金的持仓数据。
     
     Args:
-        table_name: 数据库表名
+        download_date: 下载日期，如果为None则使用当前日期
         fund_code: 基金代码
         
     Returns:
         pd.DataFrame: 特定基金的持仓数据
     """
     try:
-        # 获取数据库引擎
-        engine = db.get_engine(bind='funds_awkward')
+        df = get_funds_holdings_from_csv(download_date)
         
-        # 查询特定基金的数据
-        query = f"SELECT * FROM {table_name} WHERE fund_code = '{fund_code}'"
-        df = pd.read_sql(query, engine)
+        if df.empty or fund_code is None:
+            return df
         
-        logger.info(f"成功从表 {table_name} 获取基金 {fund_code} 的持仓数据，共 {len(df)} 条记录")
-        return df
+        # 筛选特定基金的数据
+        result_df = df[df['fund_code'] == fund_code]
+        
+        logger.info(f"成功获取基金 {fund_code} 的持仓数据，共 {len(result_df)} 条记录")
+        return result_df
         
     except Exception as e:
-        logger.error(f"从表 {table_name} 获取基金 {fund_code} 的持仓数据时发生错误: {e}")
+        logger.error(f"获取基金 {fund_code} 的持仓数据时发生错误: {e}")
+        return pd.DataFrame()
+
+
+def list_available_dates():
+    """
+    列出所有可用的数据文件日期
+    
+    Returns:
+        list: 可用日期列表
+    """
+    try:
+        save_dir = get_funds_data_directory()
+        
+        if not os.path.exists(save_dir):
+            return []
+        
+        # 获取所有CSV文件
+        csv_files = [f for f in os.listdir(save_dir) if f.startswith('funds_holdings_') and f.endswith('.csv')]
+        
+        # 提取日期
+        dates = []
+        for file in csv_files:
+            # 从文件名中提取日期: funds_holdings_20241201.csv -> 20241201
+            date_str = file.replace('funds_holdings_', '').replace('.csv', '')
+            try:
+                # 转换为日期对象
+                from datetime import datetime
+                date_obj = datetime.strptime(date_str, '%Y%m%d').date()
+                dates.append(date_obj)
+            except ValueError:
+                continue
+        
+        # 按日期排序
+        dates.sort(reverse=True)
+        
+        logger.info(f"找到 {len(dates)} 个可用的数据文件")
+        return dates
+        
+    except Exception as e:
+        logger.error(f"列出可用日期时发生错误: {e}")
+        return []
+
+
+def get_latest_data() -> pd.DataFrame:
+    """
+    获取最新的基金重仓数据
+    
+    Returns:
+        pd.DataFrame: 最新的基金重仓数据
+    """
+    try:
+        available_dates = list_available_dates()
+        
+        if not available_dates:
+            logger.warning("没有找到可用的数据文件")
+            return pd.DataFrame()
+        
+        # 获取最新日期的数据
+        latest_date = available_dates[0]
+        return get_funds_holdings_from_csv(latest_date)
+        
+    except Exception as e:
+        logger.error(f"获取最新数据时发生错误: {e}")
         return pd.DataFrame()

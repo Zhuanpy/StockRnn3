@@ -35,6 +35,9 @@ class Config:
         binds = {
             # 主数据库绑定
             "quanttradingsystem": cls.get_database_uri("quanttradingsystem"),
+
+            # 日线数据数据库绑定
+            "datadaily": cls.get_database_uri("datadaily"),
         }
         return binds
     
@@ -83,6 +86,23 @@ class Config:
                 'Sec-Fetch-User': '?1',
                 'Upgrade-Insecure-Requests': '1',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
+            },
+            'funds_awkward': {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Cache-Control': 'max-age=0',
+                'Connection': 'keep-alive',
+                'Host': 'fund.eastmoney.com',
+                'sec-ch-ua': '"Chromium";v="106", "Google Chrome";v="106", "Not;A=Brand";v="99"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
             }
         }
         
@@ -92,7 +112,8 @@ class Config:
     def get_eastmoney_urls(cls, url_type: str = 'stock_1m_multiple_days'):
         """获取东方财富URL配置"""
         urls_config = {
-            'stock_1m_multiple_days': 'https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1&fields2=f51,f52,f53,f54,f55,f56,f57&ut=fa5fd1943c7b386f172d6893dbfba10b&ndays={}&iscr=0&secid={}&cb=jQuery112406290464117319126_1645838221914&_=1645838221952'
+            'stock_1m_multiple_days': 'https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1&fields2=f51,f52,f53,f54,f55,f56,f57&ut=fa5fd1943c7b386f172d6893dbfba10b&ndays={}&iscr=0&secid={}&cb=jQuery112406290464117319126_1645838221914&_=1645838221952',
+            'funds_awkward': 'http://fund.eastmoney.com/{}.html'
         }
         
         return urls_config.get(url_type, '')

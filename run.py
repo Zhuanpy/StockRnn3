@@ -1,13 +1,19 @@
+#!/usr/bin/env python3
+"""
+量化交易系统启动文件
+"""
 import os
-import sys
-
-# 添加项目根目录到Python路径
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, project_root)
-
 from App import create_app
 
+# 设置环境变量
+os.environ.setdefault('FLASK_ENV', 'development')
+
+# 创建应用实例
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    ) 

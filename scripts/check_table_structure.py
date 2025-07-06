@@ -1,54 +1,75 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-检查数据库表结构的脚本
+检查recordtopfunds500表的详细结构
 """
-import pymysql
+
+import os
 import sys
+from sqlalchemy import create_engine, text
+
+# 添加项目路径
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from config import Config
 
 def check_table_structure():
+    """检查recordtopfunds500表的详细结构"""
+    
+    # 创建数据库连接
+    engine = create_engine(Config.get_database_uri("quanttradingsystem"))
+    
     try:
-        # 连接数据库
-        conn = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='651748264Zz',
-            database='quanttradingsystem'
-        )
-        cursor = conn.cursor()
+        print("=" * 60)
+        print("检查 quanttradingsystem.recordtopfunds500 表结构")
+        print("=" * 60)
         
-        # 检查record_stock_minute表结构
-        print("=== record_stock_minute 表结构 ===")
-        cursor.execute("DESCRIBE record_stock_minute")
-        result = cursor.fetchall()
-        
-        for row in result:
-            field_name = row[0]
-            field_type = row[1]
-            null_allowed = row[2]
-            key_type = row[3]
-            default_value = row[4]
-            extra = row[5]
+        with engine.connect() as conn:
+            # 查询表结构
+            result = conn.execute(text("DESCRIBE recordtopfunds500"))
+            columns = result.fetchall()
             
-            print(f"字段名: {field_name}")
-            print(f"  类型: {field_type}")
-            print(f"  允许NULL: {null_allowed}")
-            print(f"  键类型: {key_type}")
-            print(f"  默认值: {default_value}")
-            print(f"  额外信息: {extra}")
-            print("-" * 50)
-        
-        # 检查表是否存在
-        cursor.execute("SHOW TABLES LIKE 'record_stock_minute'")
-        if cursor.fetchone():
-            print("✅ record_stock_minute 表存在")
-        else:
-            print("❌ record_stock_minute 表不存在")
+            print("表结构详情：")
+            print(f"{'字段名':<20} {'类型':<20} {'NULL':<8} {'KEY':<8} {'DEFAULT':<15} {'EXTRA':<10}")
+            print("-" * 80)
             
-        conn.close()
+            for col in columns:
+                field_name = col[0]
+                field_type = col[1]
+                is_null = col[2]
+                key = col[3]
+                default = col[4] if col[4] else 'NULL'
+                extra = col[5] if col[5] else ''
+                
+                print(f"{field_name:<20} {field_type:<20} {is_null:<8} {key:<8} {default:<15} {extra:<10}")
+            
+            print("\n" + "=" * 60)
+            print("数据统计")
+            print("=" * 60)
+            
+            # 查询数据统计
+            result = conn.execute(text("SELECT COUNT(*) as total FROM recordtopfunds500"))
+            total = result.fetchone()[0]
+            print(f"总记录数：{total}")
+            
+            if total > 0:
+                # 查询前5条记录作为示例
+                result = conn.execute(text("SELECT * FROM recordtopfunds500 LIMIT 5"))
+                records = result.fetchall()
+                
+                print("\n前5条记录示例：")
+                for i, record in enumerate(records, 1):
+                    print(f"记录 {i}: {record}")
+        
+        print("\n" + "=" * 60)
+        print("检查完成！")
+        print("=" * 60)
         
     except Exception as e:
         print(f"检查表结构时发生错误: {e}")
-        sys.exit(1)
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     check_table_structure() 

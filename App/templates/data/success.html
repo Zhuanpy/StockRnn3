@@ -9,7 +9,7 @@
 
     <div class="card">
         <h2>下载新数据</h2>
-        <form action="{{ url_for('download_eastmoney_data.download_stock_1m_close_data_today') }}" method="post" class="download-form">
+        <form action="{{ url_for('download_eastmoney_data.download_stock_1m_close_data_today_eastmoney') }}" method="post" class="download-form">
             <div class="form-group">
                 <label for="stock_code">股票代码</label>
                 <input type="text" id="stock_code" name="stock_code" placeholder="如：002475" required>
