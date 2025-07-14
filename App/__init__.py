@@ -1,5 +1,12 @@
 from flask import Flask
 from config import config
+
+# 在导入Flask-SQLAlchemy之前运行补丁
+try:
+    import fix_typing_extensions
+except ImportError:
+    pass
+
 from .exts import init_exts
 from .utils.file_utils import ensure_data_directories
 
